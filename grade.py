@@ -6,7 +6,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 # 初始化OpenAI客户端
-client = OpenAI(api_key="sk-979c647fff274ae7a6c5e0394ccc559a", base_url="https://api.deepseek.com")
+client = OpenAI(api_key="sk-74fc3e6bcb1a43b7850d9210fcc45fa5", base_url="https://api.deepseek.com")
 
 def get_points(reference, query):
     """

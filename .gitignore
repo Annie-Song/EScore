@@ -50,3 +50,6 @@ Scripts
 Libs
 
 add
+
+# 忽略个人文档
+DOCX/

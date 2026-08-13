@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from paddlenlp.transformers import BertTokenizer
+# from paddlenlp.transformers import BertTokenizer  # 未使用的死导入，注释以移除对 paddlenlp 的硬依赖
 
 # 读取词汇表
 def load_vocab():
