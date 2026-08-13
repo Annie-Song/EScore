@@ -13,6 +13,8 @@ python-dotenv==1.2.1
 # 向量嵌入（离线语义匹配）。torch 锁定 2.5.1：2.8.0 的 shm.dll 在本机报 WinError 127
 torch==2.5.1
 sentence-transformers==5.1.2
+# 离线加载用 huggingface_hub.snapshot_download 解析本地快照（sentence-transformers 的传递依赖，显式锁定）
+huggingface-hub==0.36.2
 
 # 测试依赖
 pytest==8.4.2
