@@ -50,7 +50,7 @@ python run.py
 pytest
 ```
 
-或 `python -m pytest`。测试不依赖网络与模型，DeepSeek 与 OCR 均已 mock，可离线运行。
+或 `python -m pytest`。测试不依赖网络与模型，DeepSeek、OCR 与向量嵌入均已 mock，可离线运行。
 
 ## 架构
 
@@ -59,9 +59,11 @@ pytest
 | 模式 | 评分引擎 | 适用场景 |
 | --- | --- | --- |
 | 在线 | DeepSeek 大模型精排 | 高精度评分 |
-| 离线 | 本地相似度（当前为 difflib 占位，后续替换为向量嵌入） | 大批量低成本 |
+| 离线 | 向量嵌入语义相似度（sentence-transformers 多语言 MiniLM） | 大批量低成本 |
 
 在线评分失败时自动降级为离线评分，并在结果中通过 degraded 字段标记。
+
+离线评分首次调用会从 HuggingFace 下载多语言嵌入模型（约 118MB），需联网一次，之后本地缓存。国内访问 huggingface.co 超时时，在 `.env` 中设 `HF_ENDPOINT=https://hf-mirror.com` 走镜像。
 
 ## 训练数据来源
 

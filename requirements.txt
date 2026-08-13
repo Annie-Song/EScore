@@ -10,5 +10,9 @@ flask-cors==6.0.5
 openai==2.48.0
 python-dotenv==1.2.1
 
+# 向量嵌入（离线语义匹配）。torch 锁定 2.5.1：2.8.0 的 shm.dll 在本机报 WinError 127
+torch==2.5.1
+sentence-transformers==5.1.2
+
 # 测试依赖
 pytest==8.4.2
