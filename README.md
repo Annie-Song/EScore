@@ -63,7 +63,7 @@ pytest
 
 路由策略与阈值在 utils/config.py 配置：ROUTING_MODE 取 threshold（低分路由）/ band（中段边界带）/ off（关闭路由），对应 LOW_THRESHOLD、BAND_LOW、BAND_HIGH。在线评分失败时自动降级为离线评分，并在结果中通过 degraded 字段标记。
 
-离线评分首次调用会从 HuggingFace 下载多语言嵌入模型（约 118MB），需联网一次，之后本地缓存。国内访问 huggingface.co 超时时，在 `.env` 中设 `HF_ENDPOINT=https://hf-mirror.com` 走镜像。
+离线评分首次调用会从 HuggingFace 下载多语言嵌入模型（约 118MB），需联网一次。之后模型已缓存时加载走本地快照路径，完全离线、不发网络请求。国内访问 huggingface.co 超时时，在 `.env` 中设 `HF_ENDPOINT=https://hf-mirror.com` 走镜像。
 
 ## 训练数据来源
 
