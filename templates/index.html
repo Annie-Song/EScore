@@ -661,15 +661,22 @@
         </button>
         <div class="card" id="enhancedScoreContainer" style="display: none; margin-top: 15px; margin-bottom: 15px;">
           <div class="form-row" style="margin: 0;">
-            <div class="form-column" style="display: flex; align-items: center;">
+            <div class="form-column" style="display: flex; flex-direction: column; align-items: flex-start;">
               <div class="custom-checkbox-container">
                 <input type="checkbox" id="enableDeepseek" class="custom-checkbox">
                 <label for="enableDeepseek" class="custom-checkbox-label">
                   <span class="checkbox-icon"></span>
-                  在线模式（DeepSeek 精排）
+                  强制 DeepSeek 精排
                 </label>
               </div>
             </div>
+            <p style="
+                  margin-top: 6px;
+                  color: var(--light-text);
+                  font-size: 13px;
+                ">
+              不勾选：系统自动判断，先离线快速评分，把握不大时自动转 DeepSeek 精排（更快更省）；勾选：每次都用 DeepSeek 精排（更准但更慢）。
+            </p>
           </div>
         </div>
       </div>
@@ -987,7 +994,7 @@
         const payload = {
           workContent: contentWork,
           answerContent: contentAnswer,
-          useDeepseek: document.getElementById("enableDeepseek").checked,
+          forceOnline: document.getElementById("enableDeepseek").checked,
         };
         try {
           const response = await fetch(
