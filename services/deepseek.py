@@ -14,6 +14,18 @@ load_dotenv()
 _client: Optional[OpenAI] = None
 
 
+def _ensure_ssl_cert() -> None:
+    """清除指向不存在文件的 SSL_CERT_FILE，让 httpx 回退到 certifi 默认证书。
+
+    conda 在 Windows 上可能把 SSL_CERT_FILE 指向不存在的 ssl/cacert.pem，
+    导致 httpx 建 SSL 上下文时报 FileNotFoundError（[Errno 2]）。
+    """
+    cert_file = os.environ.get("SSL_CERT_FILE")
+    if cert_file and not os.path.exists(cert_file):
+        os.environ.pop("SSL_CERT_FILE", None)
+        logger.warning("SSL_CERT_FILE 指向不存在的文件 %s，已清除并回退默认证书", cert_file)
+
+
 def _get_client() -> OpenAI:
     """懒加载 OpenAI 客户端，避免导入模块时因缺少密钥而崩溃。"""
     global _client
@@ -23,6 +35,7 @@ def _get_client() -> OpenAI:
             raise RuntimeError(
                 "未找到 DEEPSEEK_API_KEY 环境变量，请复制 .env.example 为 .env 并填入密钥"
             )
+        _ensure_ssl_cert()
         _client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
     return _client
 
