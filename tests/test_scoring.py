@@ -32,22 +32,37 @@ def test_online_score_returns_none_when_deepseek_fails():
         assert online_score("ref", "ans") is None
 
 
-def test_grade_answer_offline_mode_uses_offline_score():
-    with patch("services.scoring.semantic_similarity", return_value=0.5):
-        result = grade_answer("参考", "答案", False)
-        assert result == {"score": 50.0, "method": "offline", "degraded": False}
-
-
-def test_grade_answer_online_mode_returns_online_result():
+def test_grade_answer_force_online_success_returns_online_result():
     with patch("services.scoring.get_points", return_value=1.0):
         result = grade_answer("参考", "答案", True)
-        assert result == {"score": 100.0, "method": "online", "degraded": False}
+        assert result == {"score": 100.0, "method": "online", "degraded": False, "routed": False}
 
 
-def test_grade_answer_online_failure_falls_back_to_offline():
+def test_grade_answer_force_online_failure_falls_back_to_offline():
     with patch("services.scoring.get_points", return_value=None), \
          patch("services.scoring.semantic_similarity", return_value=1.0):
         result = grade_answer("水的沸点是100℃", "水的沸点是100℃", True)
-        assert result["method"] == "offline"
-        assert result["degraded"] is True
-        assert result["score"] == 100.0
+        assert result == {"score": 100.0, "method": "offline", "degraded": True, "routed": False}
+
+
+def test_grade_answer_auto_no_route_uses_offline_result():
+    with patch("services.scoring.should_route", return_value=False), \
+         patch("services.scoring.semantic_similarity", return_value=0.5):
+        result = grade_answer("参考", "答案", False)
+        assert result == {"score": 50.0, "method": "offline", "degraded": False, "routed": False}
+
+
+def test_grade_answer_auto_route_success_returns_online_result():
+    with patch("services.scoring.should_route", return_value=True), \
+         patch("services.scoring.semantic_similarity", return_value=0.4), \
+         patch("services.scoring.get_points", return_value=0.9):
+        result = grade_answer("参考", "答案", False)
+        assert result == {"score": 90.0, "method": "online", "degraded": False, "routed": True}
+
+
+def test_grade_answer_auto_route_failure_falls_back_to_offline():
+    with patch("services.scoring.should_route", return_value=True), \
+         patch("services.scoring.semantic_similarity", return_value=0.4), \
+         patch("services.scoring.get_points", return_value=None):
+        result = grade_answer("参考", "答案", False)
+        assert result == {"score": 40.0, "method": "offline", "degraded": True, "routed": True}
