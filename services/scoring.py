@@ -1,22 +1,19 @@
-"""评分模块：在线 DeepSeek 精排 + 离线本地相似度兜底。
-
-离线兜底当前使用 difflib 文本相似度占位，后续版本替换为向量嵌入（bi-encoder）。
-"""
-import difflib
+"""评分模块：在线 DeepSeek 精排 + 离线向量嵌入语义相似度兜底。"""
 import logging
 from typing import Optional
 
 from services.deepseek import get_points
+from services.embedding import semantic_similarity
 
 logger = logging.getLogger(__name__)
 
 
 def offline_score(reference: str, answer: str) -> float:
-    """离线本地相似度，返回 0-100 的百分制分数。"""
+    """离线语义相似度，返回 0-100 的百分制分数。"""
     if not reference or not answer:
         return 0.0
-    ratio = difflib.SequenceMatcher(None, reference.strip(), answer.strip()).ratio()
-    return round(ratio * 100, 1)
+    score = semantic_similarity(reference, answer)
+    return round(max(0.0, min(1.0, score)) * 100, 1)
 
 
 def online_score(reference: str, answer: str) -> Optional[float]:
