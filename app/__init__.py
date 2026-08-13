@@ -2,6 +2,11 @@
 import logging
 import os
 
+# 必须先于 paddle（OCR）加载 torch，避免两者在 Windows 同进程的 DLL 冲突：
+# 若 paddle 先加载，torch 的 shm.dll 会报 WinError 127。此导入确保 torch 的
+# 运行库先进入进程，paddle 随后加载时可复用，二者才能共存。
+import torch  # noqa: F401
+
 from flask import Flask
 from flask_cors import CORS
 
