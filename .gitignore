@@ -42,6 +42,11 @@ data/
 # 依赖文件
 env/
 
+# 环境变量（含密钥，不入库）
+.env
+.env.*
+!.env.example
+
 # 忽略log文件
 log/
 
@@ -50,6 +55,9 @@ Scripts
 Libs
 
 add
+
+# 运行时目录（用户上传与生成结果）
+uploads/
 
 # 忽略个人文档
 DOCX/

@@ -673,7 +673,7 @@
                 <input type="checkbox" id="enableDeepseek" class="custom-checkbox">
                 <label for="enableDeepseek" class="custom-checkbox-label">
                   <span class="checkbox-icon"></span>
-                  启用deepseek增强评分
+                  在线模式（DeepSeek 精排）
                 </label>
               </div>
             </div>
@@ -1008,20 +1008,27 @@
           );
           const data = await response.json();
           if (response.ok) {
-            const similarity = data.similarity;
-            const roundedSimilarity = roundToHalf(similarity);
-            const displayScore = Number.isInteger(roundedSimilarity)
-              ? roundedSimilarity.toFixed(0)
-              : roundedSimilarity.toFixed(1);
+            const score = data.score;
+            const roundedScore = roundToHalf(score);
+            const displayScore = Number.isInteger(roundedScore)
+              ? roundedScore.toFixed(0)
+              : roundedScore.toFixed(1);
             document.getElementById("similarityScore").textContent =
               displayScore;
             document.getElementById("similarityDisplay").style.display =
               "block";
             document.getElementById("downloadCard").style.display = "block";
-            showNotification(
-              `文本匹配完成！作业评分：${displayScore}`,
-              "success"
-            );
+            if (data.degraded) {
+              showNotification(
+                `在线评分失败，已降级为离线评分：${displayScore}`,
+                "error"
+              );
+            } else {
+              showNotification(
+                `文本匹配完成！作业评分：${displayScore}`,
+                "success"
+              );
+            }
           } else {
             showNotification(`错误：${data.message}`, "error");
           }

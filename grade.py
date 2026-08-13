@@ -1,23 +1,34 @@
-from openai import OpenAI
+import os
 import re
 import logging
+from typing import Optional
+from openai import OpenAI
+from dotenv import load_dotenv
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
 
-# 初始化OpenAI客户端
-client = OpenAI(api_key="sk-74fc3e6bcb1a43b7850d9210fcc45fa5", base_url="https://api.deepseek.com")
+# 加载 .env 中的环境变量（密钥不入库）
+load_dotenv()
 
-def get_points(reference, query):
+# 初始化OpenAI客户端，密钥从环境变量读取，避免硬编码泄露
+DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY")
+if not DEEPSEEK_API_KEY:
+    raise RuntimeError("未找到 DEEPSEEK_API_KEY 环境变量，请复制 .env.example 为 .env 并填入密钥")
+
+client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")
+
+
+def get_points(reference: str, query: str) -> Optional[float]:
     """
-    使用deepseek API评估学生答案与参考答案的相似度
-    
+    使用deepseek API评估学生答案与参考答案的相似度。
+
     参数:
         reference (str): 参考答案文本
         query (str): 学生答案文本
-    
+
     返回:
-        float: 0.00-1.00之间的分数，表示相似度
+        Optional[float]: 0.00-1.00 之间的相似度分数；失败时返回 None。
     """
     try:
         response = client.chat.completions.create(
@@ -52,24 +63,23 @@ def get_points(reference, query):
             temperature=0.1,
             stream=False
         )
-        
+
         # 结果处理
         score_str = response.choices[0].message.content
         logging.info(f"Deepseek原始输出: {score_str}")
-        
+
         try:
             return float(score_str)
-        except:
+        except (TypeError, ValueError):
             # 使用正则提取数字
             match = re.search(r"\d?\.\d{1,2}", score_str)
             if match:
                 score = float(match.group())
                 logging.info(f"从文本中提取的评分: {score}")
                 return score
-            else:
-                logging.warning("无法从Deepseek响应中提取评分")
-                return 0.5  # 默认返回中等分数
-                
+            logging.warning("无法从Deepseek响应中提取评分")
+            return None
+
     except Exception as e:
         logging.error(f"Deepseek API调用失败: {str(e)}")
-        return 0.5  # 出错时返回中等分数
+        return None
