@@ -59,6 +59,10 @@ add
 # 运行时目录（用户上传与生成结果）
 uploads/
 
+# 运行时生成的批改报告与增强图（output/ 下已有实验 csv 需保留跟踪）
+output/reports/
+output/enhance/
+
 # 忽略个人文档与工作记忆
 DOCX/
 memory/
