@@ -59,14 +59,15 @@ def compare_texts():
     data = request.json
     work_content = data.get('workContent')
     answer_content = data.get('answerContent')
-    use_online = data.get('useDeepseek', False)
+    force_online = data.get('forceOnline', False)
 
     if not work_content or not answer_content:
         return jsonify({"message": "请输入作业内容和参考答案内容"}), 400
 
-    result = grade_answer(answer_content, work_content, use_online)
+    result = grade_answer(answer_content, work_content, force_online=force_online)
     return jsonify({
         "score": result["score"],
         "method": result["method"],
         "degraded": result["degraded"],
+        "routed": result["routed"],
     }), 200

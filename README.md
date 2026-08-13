@@ -54,14 +54,14 @@ pytest
 
 ## 架构
 
-系统提供两条评分链路，由前端开关"在线模式（DeepSeek 精排）"控制：
+系统采用级联两阶段评分：先由离线向量嵌入（sentence-transformers 多语言 MiniLM）粗筛，离线分低于阈值（默认 60 分）或落入边界带时自动路由 DeepSeek 精排。前端勾选「强制 DeepSeek 精排」则跳过粗筛、每次都用 DeepSeek。
 
 | 模式 | 评分引擎 | 适用场景 |
 | --- | --- | --- |
-| 在线 | DeepSeek 大模型精排 | 高精度评分 |
-| 离线 | 向量嵌入语义相似度（sentence-transformers 多语言 MiniLM） | 大批量低成本 |
+| 自动级联（默认） | 离线粗筛 + 低置信度自动转 DeepSeek 精排 | 精度与成本平衡 |
+| 强制在线 | DeepSeek 大模型精排 | 高精度评分 |
 
-在线评分失败时自动降级为离线评分，并在结果中通过 degraded 字段标记。
+路由策略与阈值在 utils/config.py 配置：ROUTING_MODE 取 threshold（低分路由）/ band（中段边界带）/ off（关闭路由），对应 LOW_THRESHOLD、BAND_LOW、BAND_HIGH。在线评分失败时自动降级为离线评分，并在结果中通过 degraded 字段标记。
 
 离线评分首次调用会从 HuggingFace 下载多语言嵌入模型（约 118MB），需联网一次，之后本地缓存。国内访问 huggingface.co 超时时，在 `.env` 中设 `HF_ENDPOINT=https://hf-mirror.com` 走镜像。
 
