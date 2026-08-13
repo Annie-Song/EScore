@@ -2,8 +2,6 @@
 import os
 import uuid
 import logging
-import pytesseract
-from PIL import Image
 from flask_cors import CORS
 from paddleocr import PaddleOCR
 from flask import Flask, request, jsonify, render_template
@@ -19,11 +17,6 @@ logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
 CORS(app)  # 允许跨域请求
-
-# Tesseract 可执行文件路径（仅使用 Tesseract 路线时需要）
-tesseract_cmd = os.environ.get("TESSERACT_CMD")
-if tesseract_cmd:
-    pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
 
 # 配置文件上传目录
 UPLOAD_FOLDER = './uploads'
@@ -69,27 +62,16 @@ def ocr_service():
     file1.save(file1_path)
     file2.save(file2_path)
 
-    model = request.form.get('model')
     language = request.form.get('language')
-    logging.info("OCR 请求: %s, %s, model=%s, language=%s", file1_path, file2_path, model, language)
-
-    if model == "PaddleOCR":
-        ocr = PaddleOCR(show_log=False, use_angle_cls=True, lang='ch' if language == "中文" else 'en')
-    elif model == "Tesseract":
-        ocr = None
-    else:
-        return jsonify({"message": "无效的 OCR 模型！"}), 400
+    lang = 'ch' if language == "中文" else 'en'
+    logging.info("OCR 请求: %s, %s, language=%s", file1_path, file2_path, language)
 
     try:
-        if model == "PaddleOCR":
-            result1 = ocr.ocr(file1_path, cls=True)
-            work_content = '\n'.join([str(line[1][0]) for line in (result1[0] or [])])
-            result2 = ocr.ocr(file2_path, cls=True)
-            answer_content = '\n'.join([str(line[1][0]) for line in (result2[0] or [])])
-        else:  # Tesseract
-            tesseract_lang = 'chi_sim' if language == "中文" else 'eng'
-            work_content = pytesseract.image_to_string(Image.open(file1_path), lang=tesseract_lang)
-            answer_content = pytesseract.image_to_string(Image.open(file2_path), lang=tesseract_lang)
+        ocr = PaddleOCR(show_log=False, use_angle_cls=True, lang=lang)
+        result1 = ocr.ocr(file1_path, cls=True)
+        work_content = '\n'.join([str(line[1][0]) for line in (result1[0] or [])])
+        result2 = ocr.ocr(file2_path, cls=True)
+        answer_content = '\n'.join([str(line[1][0]) for line in (result2[0] or [])])
 
         return jsonify({
             "workContent": work_content,

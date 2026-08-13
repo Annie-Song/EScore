@@ -578,13 +578,6 @@
         <div class="card-title"><span>1</span>选择识别参数</div>
         <div class="form-row">
           <div class="form-column">
-            <label for="model">OCR 识别模型：</label>
-            <select id="model">
-              <option value="PaddleOCR">PaddleOCR (推荐)</option>
-              <option value="Tesseract">Tesseract</option>
-            </select>
-          </div>
-          <div class="form-column">
             <label for="language">识别语言：</label>
             <select id="language">
               <option value="中文">中文</option>
@@ -942,7 +935,6 @@
         const formData = new FormData();
         formData.append("file1", fileInput1.files[0]);
         formData.append("file2", fileInput2.files[0]);
-        formData.append("model", document.getElementById("model").value);
         formData.append(
           "language",
           document.getElementById("language").value

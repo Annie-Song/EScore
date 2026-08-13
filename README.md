@@ -34,7 +34,6 @@ cp .env.example .env   # Windows: copy .env.example .env
 | 变量 | 说明 |
 | --- | --- |
 | DEEPSEEK_API_KEY | DeepSeek API 密钥（在线评分必需） |
-| TESSERACT_CMD | Tesseract 可执行文件路径（仅使用 Tesseract 路线时需要） |
 | FLASK_DEBUG | 调试模式开关，生产环境保持 0 |
 
 ## 运行
