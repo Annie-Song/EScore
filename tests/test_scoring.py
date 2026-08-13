@@ -4,8 +4,14 @@ from unittest.mock import patch
 from services.scoring import offline_score, online_score, grade_answer
 
 
-def test_offline_score_identical_texts_return_full():
-    assert offline_score("水的沸点是100℃", "水的沸点是100℃") == 100.0
+def test_offline_score_maps_semantic_similarity_to_percent():
+    with patch("services.scoring.semantic_similarity", return_value=0.75):
+        assert offline_score("ref", "ans") == 75.0
+
+
+def test_offline_score_clamps_negative_similarity_to_zero():
+    with patch("services.scoring.semantic_similarity", return_value=-0.2):
+        assert offline_score("ref", "ans") == 0.0
 
 
 def test_offline_score_empty_reference_returns_zero():
@@ -27,9 +33,9 @@ def test_online_score_returns_none_when_deepseek_fails():
 
 
 def test_grade_answer_offline_mode_uses_offline_score():
-    result = grade_answer("参考", "答案", False)
-    assert result["method"] == "offline"
-    assert result["degraded"] is False
+    with patch("services.scoring.semantic_similarity", return_value=0.5):
+        result = grade_answer("参考", "答案", False)
+        assert result == {"score": 50.0, "method": "offline", "degraded": False}
 
 
 def test_grade_answer_online_mode_returns_online_result():
@@ -39,7 +45,8 @@ def test_grade_answer_online_mode_returns_online_result():
 
 
 def test_grade_answer_online_failure_falls_back_to_offline():
-    with patch("services.scoring.get_points", return_value=None):
+    with patch("services.scoring.get_points", return_value=None), \
+         patch("services.scoring.semantic_similarity", return_value=1.0):
         result = grade_answer("水的沸点是100℃", "水的沸点是100℃", True)
         assert result["method"] == "offline"
         assert result["degraded"] is True
