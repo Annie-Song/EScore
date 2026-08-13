@@ -14,3 +14,7 @@ ROUTING_MODE = "threshold"  # 路由策略："threshold" 低分路由 / "band" �
 LOW_THRESHOLD = 60.0        # 低分路由阈值：离线分低于此值转 DeepSeek 精排
 BAND_LOW = 40.0             # 中段边界带下界
 BAND_HIGH = 80.0            # 中段边界带上界
+
+# 报告下载配置
+REPORT_FOLDER = './output/reports'  # Word 报告临时落盘目录
+REPORT_FILENAME = '批改报告'        # 报告下载文件名前缀（前端展示的中文名）

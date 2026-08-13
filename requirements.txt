@@ -16,5 +16,8 @@ sentence-transformers==5.1.2
 # 离线加载用 huggingface_hub.snapshot_download 解析本地快照（sentence-transformers 的传递依赖，显式锁定）
 huggingface-hub==0.36.2
 
+# 报告下载：生成 Word 版批改报告（.docx）
+python-docx==1.2.0
+
 # 测试依赖
 pytest==8.4.2
