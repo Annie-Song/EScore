@@ -1,4 +1,5 @@
 """DeepSeek 客户端单元测试。"""
+import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -54,3 +55,23 @@ def test_get_client_raises_without_api_key():
         with patch.object(deepseek, "_client", None):
             with pytest.raises(RuntimeError):
                 deepseek._get_client()
+
+
+def test_ensure_ssl_cert_clears_nonexistent_cert_file(monkeypatch):
+    monkeypatch.setenv("SSL_CERT_FILE", "D:/nonexistent/cacert.pem")
+    deepseek._ensure_ssl_cert()
+    assert "SSL_CERT_FILE" not in os.environ
+
+
+def test_ensure_ssl_cert_keeps_existing_cert_file(monkeypatch, tmp_path):
+    cert = tmp_path / "cacert.pem"
+    cert.write_text("dummy")
+    monkeypatch.setenv("SSL_CERT_FILE", str(cert))
+    deepseek._ensure_ssl_cert()
+    assert os.environ["SSL_CERT_FILE"] == str(cert)
+
+
+def test_ensure_ssl_cert_noop_without_var(monkeypatch):
+    monkeypatch.delenv("SSL_CERT_FILE", raising=False)
+    deepseek._ensure_ssl_cert()
+    assert "SSL_CERT_FILE" not in os.environ
