@@ -688,17 +688,22 @@
       </div>
       <div class="card" id="downloadCard" style="display: none">
         <div class="card-title"><span>4</span>下载批改结果</div>
-        <label for="DownloadPath">下载路径：</label>
-        <input type="text" id="DownloadPath" placeholder="选择或输入文件保存路径" />
+        <p style="
+              margin-bottom: 15px;
+              color: var(--light-text);
+              font-size: 14px;
+            ">
+          选择格式下载批改报告，HTML 可直接浏览器打开打印，Word 可二次编辑。
+        </p>
         <div class="form-row">
           <div class="form-column">
-            <button type="button" id="choosePathButton" class="full-width-btn">
-              选择保存路径
+            <button type="button" id="downloadHtmlButton" class="full-width-btn">
+              下载 HTML 报告
             </button>
           </div>
           <div class="form-column">
-            <button type="button" id="DownloadButton" class="full-width-btn">
-              下载批改结果
+            <button type="button" id="downloadDocxButton" class="full-width-btn">
+              下载 Word 报告
             </button>
           </div>
         </div>
@@ -712,6 +717,8 @@
     let originalWorkText = "";
     let originalAnswerText = "";
     let progressInterval = null;
+    // 最近一次文本比对结果（score/method/degraded/routed），供下载报告使用
+    let lastResult = null;
 
     function roundToHalf(value) {
       const converted = parseFloat(value);
@@ -1007,6 +1014,7 @@
           );
           const data = await response.json();
           if (response.ok) {
+            lastResult = data;
             const score = data.score;
             const roundedScore = roundToHalf(score);
             const displayScore = Number.isInteger(roundedScore)
@@ -1041,26 +1049,57 @@
         }
       });
 
-    document
-      .getElementById("DownloadButton")
-      .addEventListener("click", () => {
-        const downloadPath = document.getElementById("DownloadPath").value;
-        if (!downloadPath) {
-          showNotification("请先选择下载路径！", "error");
-          return;
-        }
-        showNotification("正在保存批改结果...", "success");
-        setTimeout(() => {
-          showNotification("批改结果已保存到指定路径！", "success");
-        }, 1500);
-      });
+    // 下载指定格式的批改报告（html/docx），依赖最近一次文本比对结果
+    function downloadReport(format) {
+      const contentWork = document.getElementById("content_work").value;
+      const contentAnswer = document.getElementById("content_answer").value;
+      if (!contentWork || !contentAnswer || !lastResult) {
+        showNotification("请先完成文本比对", "error");
+        return;
+      }
+      const payload = {
+        workContent: contentWork,
+        answerContent: contentAnswer,
+        score: lastResult.score,
+        method: lastResult.method,
+        degraded: lastResult.degraded,
+        routed: lastResult.routed,
+        format: format,
+      };
+      fetch("http://127.0.0.1:5000/download_report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            showNotification(`下载失败：${data.message || "未知错误"}`, "error");
+            return;
+          }
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = format === "html" ? "批改报告.html" : "批改报告.docx";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+          showNotification("报告下载成功！", "success");
+        })
+        .catch((error) => {
+          showNotification(`下载失败：${error.message}`, "error");
+        });
+    }
 
     document
-      .getElementById("choosePathButton")
-      .addEventListener("click", () => {
-        document.getElementById("DownloadPath").value =
-          "C:/Users/学生/Documents/批改结果.pdf";
-      });
+      .getElementById("downloadHtmlButton")
+      .addEventListener("click", () => downloadReport("html"));
+
+    document
+      .getElementById("downloadDocxButton")
+      .addEventListener("click", () => downloadReport("docx"));
 
     document
       .getElementById("undoButtonWork")

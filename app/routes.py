@@ -1,12 +1,19 @@
-"""Flask 路由：首页、OCR 识别、文本评分。"""
+"""Flask 路由：首页、OCR 识别、文本评分、报告下载。"""
 import logging
+import os
+import uuid
+from datetime import datetime
+from urllib.parse import quote
 
-from flask import Blueprint, request, jsonify, render_template
+from flask import Blueprint, Response, jsonify, render_template, request, send_file
 
 from services.ocr import recognize_texts
+from services.report import build_report_docx, build_report_html
 from services.scoring import grade_answer
-from utils.config import OCR_LANG_MAP
+from utils.config import OCR_LANG_MAP, REPORT_FILENAME, REPORT_FOLDER
 from utils.files import allowed_file, save_upload
+
+_DOCX_MIMETYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 logger = logging.getLogger(__name__)
 
@@ -71,3 +78,62 @@ def compare_texts():
         "degraded": result["degraded"],
         "routed": result["routed"],
     }), 200
+
+
+@bp.route('/download_report', methods=['POST'])
+def download_report():
+    """根据比对结果生成批改报告并下载，支持 html 与 docx 两种格式。"""
+    data = request.json
+    if not data:
+        return jsonify({"message": "请求体不能为空"}), 400
+
+    work_content = data.get('workContent')
+    answer_content = data.get('answerContent')
+    fmt = data.get('format', 'html')
+
+    if not work_content or not answer_content:
+        return jsonify({"message": "缺少作业内容或参考答案内容"}), 400
+    if fmt not in ('html', 'docx'):
+        return jsonify({"message": "不支持的下载格式"}), 400
+
+    report_data = {
+        "work_content": work_content,
+        "answer_content": answer_content,
+        "score": data.get('score'),
+        "method": data.get('method'),
+        "degraded": data.get('degraded'),
+        "routed": data.get('routed'),
+        "generated_at": datetime.now().isoformat(),
+    }
+
+    try:
+        if fmt == 'html':
+            html_report = build_report_html(report_data)
+            html_name = f"{REPORT_FILENAME}.html"
+            return Response(
+                html_report,
+                mimetype='text/html',
+                headers={
+                    'Content-Disposition': (
+                        "attachment; filename=report.html; "
+                        f"filename*=UTF-8''{quote(html_name)}"
+                    )
+                },
+            )
+
+        os.makedirs(REPORT_FOLDER, exist_ok=True)
+        docx_name = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:8]}.docx"
+        # abspath 统一解析：makedirs/写入按 CWD 落盘，send_file 却按 app.root_path 拼接相对路径，
+        # 若不转绝对路径，默认配置下 send_file 会读不到文件而 500。
+        out_path = os.path.abspath(os.path.join(REPORT_FOLDER, docx_name))
+        build_report_docx(report_data, out_path)
+        return send_file(
+            out_path,
+            as_attachment=True,
+            download_name=f"{REPORT_FILENAME}.docx",
+            mimetype=_DOCX_MIMETYPE,
+        )
+
+    except Exception as e:
+        logger.error("报告下载生成出错: %s", e, exc_info=True)
+        return jsonify({"message": "报告生成失败，请重试"}), 500
