@@ -39,10 +39,18 @@ cp .env.example .env   # Windows: copy .env.example .env
 ## 运行
 
 ```
-python server.py
+python run.py
 ```
 
 或双击 `run.bat`。启动后浏览器访问 http://127.0.0.1:5000/ 。
+
+## 测试
+
+```
+pytest
+```
+
+或 `python -m pytest`。测试不依赖网络与模型，DeepSeek 与 OCR 均已 mock，可离线运行。
 
 ## 架构
 
