@@ -1,23 +1,18 @@
 """评分模块：在线 DeepSeek 精排 + 离线本地相似度兜底。
 
-1.1 版本中离线兜底使用 difflib 文本相似度占位；
-1.2 微服务重构时替换为向量嵌入（bi-encoder）+ 余弦相似度。
+离线兜底当前使用 difflib 文本相似度占位，后续版本替换为向量嵌入（bi-encoder）。
 """
 import difflib
 import logging
 from typing import Optional
 
-from grade import get_points
+from services.deepseek import get_points
 
 logger = logging.getLogger(__name__)
 
 
 def offline_score(reference: str, answer: str) -> float:
-    """离线本地相似度，返回 0-100 的百分制分数。
-
-    当前用 difflib.SequenceMatcher 做字面相似度，仅作占位；
-    语义级相似度需在 1.2 替换为向量嵌入方案。
-    """
+    """离线本地相似度，返回 0-100 的百分制分数。"""
     if not reference or not answer:
         return 0.0
     ratio = difflib.SequenceMatcher(None, reference.strip(), answer.strip()).ratio()

@@ -1,27 +1,34 @@
+"""DeepSeek 在线评分客户端：调用大模型对答案语义打分。"""
 import os
 import re
 import logging
 from typing import Optional
-from openai import OpenAI
+
 from dotenv import load_dotenv
+from openai import OpenAI
 
-# 配置日志
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# 加载 .env 中的环境变量（密钥不入库）
 load_dotenv()
 
-# 初始化OpenAI客户端，密钥从环境变量读取，避免硬编码泄露
-DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY")
-if not DEEPSEEK_API_KEY:
-    raise RuntimeError("未找到 DEEPSEEK_API_KEY 环境变量，请复制 .env.example 为 .env 并填入密钥")
+_client: Optional[OpenAI] = None
 
-client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com")
+
+def _get_client() -> OpenAI:
+    """懒加载 OpenAI 客户端，避免导入模块时因缺少密钥而崩溃。"""
+    global _client
+    if _client is None:
+        api_key = os.environ.get("DEEPSEEK_API_KEY")
+        if not api_key:
+            raise RuntimeError(
+                "未找到 DEEPSEEK_API_KEY 环境变量，请复制 .env.example 为 .env 并填入密钥"
+            )
+        _client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
+    return _client
 
 
 def get_points(reference: str, query: str) -> Optional[float]:
-    """
-    使用deepseek API评估学生答案与参考答案的相似度。
+    """使用 DeepSeek 评估学生答案与参考答案的相似度。
 
     参数:
         reference (str): 参考答案文本
@@ -31,6 +38,7 @@ def get_points(reference: str, query: str) -> Optional[float]:
         Optional[float]: 0.00-1.00 之间的相似度分数；失败时返回 None。
     """
     try:
+        client = _get_client()
         response = client.chat.completions.create(
             model="deepseek-chat",
             messages=[
@@ -64,22 +72,20 @@ def get_points(reference: str, query: str) -> Optional[float]:
             stream=False
         )
 
-        # 结果处理
         score_str = response.choices[0].message.content
-        logging.info(f"Deepseek原始输出: {score_str}")
+        logger.info("Deepseek原始输出: %s", score_str)
 
         try:
             return float(score_str)
         except (TypeError, ValueError):
-            # 使用正则提取数字
             match = re.search(r"\d?\.\d{1,2}", score_str)
             if match:
                 score = float(match.group())
-                logging.info(f"从文本中提取的评分: {score}")
+                logger.info("从文本中提取的评分: %s", score)
                 return score
-            logging.warning("无法从Deepseek响应中提取评分")
+            logger.warning("无法从Deepseek响应中提取评分")
             return None
 
     except Exception as e:
-        logging.error(f"Deepseek API调用失败: {str(e)}")
+        logger.error("Deepseek API调用失败: %s", e)
         return None
