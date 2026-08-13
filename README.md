@@ -65,6 +65,14 @@ pytest
 
 离线评分首次调用会从 HuggingFace 下载多语言嵌入模型（约 118MB），需联网一次。之后模型已缓存时加载走本地快照路径，完全离线、不发网络请求。国内访问 huggingface.co 超时时，在 `.env` 中设 `HF_ENDPOINT=https://hf-mirror.com` 走镜像。
 
+## ESRGAN 图像增强（备选）
+
+当上传的作业图片质量较低、首次 OCR 识别的平均置信度低于阈值（默认 0.6，见 `utils/config.py` 的 `ENHANCE_CONFIDENCE_THRESHOLD`）时，系统会自动调用 ESRGAN 对图片做 4x 超分并重新识别；若增强后的识别置信度更高则采用增强结果，否则维持原识别文本。该功能为备选增强，不影响 OCR 主流程。
+
+增强依赖官方预训练权重文件 `RRDB_ESRGAN_x4.pth`，从 ESRGAN 官方仓库 https://github.com/xinntao/ESRGAN 下载后放入 `ESRGAN/models/` 目录即可（该目录下另有 README 说明两个可用权重）。权重文件缺失或加载失败时，系统自动降级为普通识别，仅在日志中记录一次警告，OCR 主流程不受影响。
+
+注意增强在 CPU 上运行较慢（每张图需数秒到数十秒），且仅低置信度图片会触发；如需完全跳过增强，可删除权重文件或将 `ENHANCE_CONFIDENCE_THRESHOLD` 调低。
+
 ## 训练数据来源
 
 图像增强实验使用 DIV2K 数据集：https://data.vision.ee.ethz.ch/cvl/DIV2K/
