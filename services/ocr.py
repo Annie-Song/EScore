@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 _ocr_instances: dict[str, object] = {}
 # 保护缓存创建，避免并发请求重复实例化
 _load_lock = threading.Lock()
+# 保护实例推理：PaddleOCR 底层不线程安全，并发请求排队串行识别
+_infer_lock = threading.Lock()
 # 增强降级警告只记录一次，避免每个低置信度图片重复刷日志
 _enhance_warned = False
 
@@ -46,7 +48,8 @@ def _avg_confidence(lines: List[Tuple[str, float]]) -> float:
 
 def _recognize_lines(ocr: object, path: str) -> List[Tuple[str, float]]:
     """识别单张图片并返回 (文本, 置信度) 列表。"""
-    result = ocr.ocr(path, cls=True)
+    with _infer_lock:
+        result = ocr.ocr(path, cls=True)
     return _extract_lines(result)
 
 

@@ -5,6 +5,7 @@
 """
 import sys
 import threading
+import time
 import types
 from contextlib import contextmanager
 from typing import Dict, Iterator, Tuple
@@ -31,10 +32,22 @@ def _inject_fake_paddleocr(*, raise_on_init: bool = False) -> Iterator[Tuple[Dic
                 raise RuntimeError("mock paddleocr init failure")
             self.lang = lang
             self.calls: list = []
+            # 并发深度探针：_active 为当前并发进入 ocr 的线程数，_max_active 为历史峰值
+            self._active = 0
+            self._max_active = 0
+            self._probe_lock = threading.Lock()
 
         def ocr(self, path: str, cls: bool = True) -> list:
-            self.calls.append(path)
-            return [[[None, (f"文本-{path}", 0.9)]]]
+            with self._probe_lock:
+                self._active += 1
+                self._max_active = max(self._max_active, self._active)
+            time.sleep(0.01)  # 放大并发窗口，若未被 _infer_lock 串行则会观察到深度 > 1
+            try:
+                self.calls.append(path)
+                return [[[None, (f"文本-{path}", 0.9)]]]
+            finally:
+                with self._probe_lock:
+                    self._active -= 1
 
     fake_module.PaddleOCR = _FakePaddleOCR
     original = sys.modules.get("paddleocr")
@@ -119,4 +132,32 @@ def test_load_paddleocr_init_error_does_not_pollute_cache():
     with _inject_fake_paddleocr() as (counter, _):
         instance = ocr_module._load_paddleocr("ch")
         assert instance is ocr_module._ocr_instances["ch"]
+        assert counter["count"] == 1
+
+
+def test_recognize_texts_concurrent_calls_serialized_by_infer_lock():
+    """多线程并发 recognize_texts 时 _infer_lock 串行化 ocr.ocr，最大并发深度 = 1。"""
+    with _inject_fake_paddleocr() as (counter, _):
+        ocr_module._load_paddleocr("ch")  # 预热缓存，本用例聚焦推理串行化
+        errors = []
+        results = []
+
+        def _call() -> None:
+            try:
+                results.append(recognize_texts(["a.jpg", "b.jpg"], lang="ch"))
+            except Exception as exc:  # noqa: BLE001 - 测试内收集异常便于断言
+                errors.append(exc)
+
+        threads = [threading.Thread(target=_call) for _ in range(8)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        instance = ocr_module._ocr_instances["ch"]
+        assert errors == []
+        assert len(results) == 8
+        assert results[0] == ["文本-a.jpg", "文本-b.jpg"]
+        assert all(result == results[0] for result in results)
+        assert instance._max_active == 1
         assert counter["count"] == 1
