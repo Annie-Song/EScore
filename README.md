@@ -69,7 +69,7 @@ pytest
 
 当上传的作业图片质量较低、首次 OCR 识别的平均置信度低于阈值（默认 0.6，见 `utils/config.py` 的 `ENHANCE_CONFIDENCE_THRESHOLD`）时，系统会自动调用 ESRGAN 对图片做 4x 超分并重新识别；若增强后的识别置信度更高则采用增强结果，否则维持原识别文本。该功能为备选增强，不影响 OCR 主流程。
 
-增强依赖官方预训练权重文件 `RRDB_ESRGAN_x4.pth`，从 ESRGAN 官方仓库 https://github.com/xinntao/ESRGAN 下载后放入 `ESRGAN/models/` 目录即可（该目录下另有 README 说明两个可用权重）。权重文件缺失或加载失败时，系统自动降级为普通识别，仅在日志中记录一次警告，OCR 主流程不受影响。
+增强依赖官方预训练权重文件 `RRDB_ESRGAN_x4.pth`。该文件不在 GitHub 仓库内，需从 ESRGAN 官方仓库 https://github.com/xinntao/ESRGAN 的 README「Download pretrained models」一节所列的 [Google Drive](https://drive.google.com/drive/u/0/folders/17VYV_SoZZesU6mbxz2dMAIccSSlqLecY) 或 [Baidu Drive](https://pan.baidu.com/s/1-Lh6ma-wXzfH8NqeBtPaFQ) 下载，放入 `ESRGAN/models/` 目录（该目录下另有 README 说明两个可用权重）。权重文件缺失或加载失败时，系统自动降级为普通识别，仅在日志中记录一次警告，OCR 主流程不受影响。
 
 注意增强在 CPU 上运行较慢（每张图需数秒到数十秒），且仅低置信度图片会触发；如需完全跳过增强，可删除权重文件或将 `ENHANCE_CONFIDENCE_THRESHOLD` 调低。
 
