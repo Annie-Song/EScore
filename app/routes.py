@@ -10,7 +10,13 @@ from flask import Blueprint, Response, jsonify, render_template, request, send_f
 from services.ocr import recognize_texts
 from services.report import build_report_docx, build_report_html
 from services.scoring import grade_answer
-from utils.config import OCR_LANG_MAP, REPORT_FILENAME, REPORT_FOLDER
+from utils.config import (
+    DEFAULT_ROUTING_PRESET,
+    OCR_LANG_MAP,
+    REPORT_FILENAME,
+    REPORT_FOLDER,
+    ROUTING_PRESETS,
+)
 from utils.files import allowed_file, save_upload
 
 _DOCX_MIMETYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -67,11 +73,16 @@ def compare_texts():
     work_content = data.get('workContent')
     answer_content = data.get('answerContent')
     force_online = data.get('forceOnline', False)
+    quality = data.get('quality') or DEFAULT_ROUTING_PRESET
+    if quality not in ROUTING_PRESETS:
+        return jsonify({"message": f"未知评分质量: {quality}"}), 400
 
     if not work_content or not answer_content:
         return jsonify({"message": "请输入作业内容和参考答案内容"}), 400
 
-    result = grade_answer(answer_content, work_content, force_online=force_online)
+    result = grade_answer(
+        answer_content, work_content, force_online=force_online, quality_mode=quality
+    )
     return jsonify({
         "score": result["score"],
         "method": result["method"],

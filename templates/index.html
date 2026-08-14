@@ -680,6 +680,11 @@
         <div class="card" id="enhancedScoreContainer" style="display: none; margin-top: 15px; margin-bottom: 15px;">
           <div class="form-row" style="margin: 0;">
             <div class="form-column" style="display: flex; flex-direction: column; align-items: flex-start;">
+              <label for="qualityMode" style="margin-bottom:6px; font-size:14px;">评分质量：</label>
+              <select id="qualityMode" style="margin-bottom:8px; width:auto;">
+                <option value="fast">快速版（默认，更快更省）</option>
+                <option value="quality">高质版（更准，差档作答更多精排）</option>
+              </select>
               <div class="custom-checkbox-container">
                 <input type="checkbox" id="enableDeepseek" class="custom-checkbox">
                 <label for="enableDeepseek" class="custom-checkbox-label">
@@ -693,7 +698,7 @@
                   color: var(--light-text);
                   font-size: 13px;
                 ">
-              不勾选：系统自动判断，先离线快速评分，把握不大时自动转 DeepSeek 精排（更快更省）；勾选：每次都用 DeepSeek 精排（更准但更慢）。
+              快速版：低分才转精排，更快更省；高质版：更多作答转精排，更准但更慢。不勾选强制精排：系统自动判断，先离线快速评分，把握不大时自动转 DeepSeek 精排（更快更省）；勾选：每次都用 DeepSeek 精排（更准但更慢）。
             </p>
           </div>
         </div>
@@ -1020,6 +1025,7 @@
           workContent: contentWork,
           answerContent: contentAnswer,
           forceOnline: document.getElementById("enableDeepseek").checked,
+          quality: document.getElementById("qualityMode").value,
         };
         try {
           const response = await fetch(

@@ -3,7 +3,12 @@ import logging
 
 from flask import Blueprint, jsonify, render_template, request
 
-from utils.config import ERROR_AI_MODE, OCR_LANG_MAP
+from utils.config import (
+    DEFAULT_ROUTING_PRESET,
+    ERROR_AI_MODE,
+    OCR_LANG_MAP,
+    ROUTING_PRESETS,
+)
 from utils.files import allowed_file, save_upload
 
 logger = logging.getLogger(__name__)
@@ -44,11 +49,23 @@ def batch_grade():
         if error_ai_mode_raw is not None
         else ERROR_AI_MODE
     )
+    quality_raw = request.form.get('quality')
+    quality = quality_raw if quality_raw else DEFAULT_ROUTING_PRESET
+    if quality not in ROUTING_PRESETS:
+        return jsonify({"message": f"未知评分质量: {quality}"}), 400
 
     task_id = create_task(len(work_paths))
     threading.Thread(
         target=run_batch_job,
-        args=(task_id, reference_path, work_paths, lang, enable_segment, error_ai_mode),
+        args=(
+            task_id,
+            reference_path,
+            work_paths,
+            lang,
+            enable_segment,
+            error_ai_mode,
+            quality,
+        ),
         daemon=True,
     ).start()
     logger.info("批量批改任务已启动: task_id=%s, 作业数=%d", task_id, len(work_paths))

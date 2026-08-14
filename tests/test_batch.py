@@ -213,3 +213,42 @@ def test_run_batch_job_progress_tracks_current_item(image_files):
     assert progress_calls[0].kwargs["message"] == "正在批改第 1/2 份作业"
     assert progress_calls[1].kwargs["message"] == "正在批改第 2/2 份作业"
     assert task_store.get_task(task_id)["progress"] == 100
+
+
+def test_run_batch_job_passes_quality_mode_to_grade_batch(image_files):
+    """quality_mode 透传：run_batch_job 收到的 quality_mode 原样传给每次 grade_batch。"""
+    store = _FakeStore()
+    task_id = task_store.create_task(len(image_files["works"]))
+
+    with patch("services.batch.recognize_texts",
+               side_effect=_fake_recognize(image_files["reference"], "参考答案文本", "整图文本")), \
+         patch("services.batch.default_store", return_value=store), \
+         patch("services.batch_scoring.grade_batch", return_value=[_result(70.0)]) as mock_grade, \
+         patch("services.error_category.classify_error", return_value=("部分正确", "")), \
+         patch("services.batch.update_task", wraps=task_store.update_task):
+        run_batch_job(task_id, image_files["reference"], image_files["works"],
+                      lang="ch", enable_segment=False, error_ai_mode=False,
+                      quality_mode="quality")
+
+    assert mock_grade.call_count == len(image_files["works"])
+    assert all(call.kwargs["quality_mode"] == "quality"
+               for call in mock_grade.call_args_list)
+
+
+def test_run_batch_job_default_quality_mode_is_fast(image_files):
+    """缺省 quality_mode 为 fast（与 config.DEFAULT_ROUTING_PRESET 一致），透传给 grade_batch。"""
+    store = _FakeStore()
+    task_id = task_store.create_task(len(image_files["works"]))
+
+    with patch("services.batch.recognize_texts",
+               side_effect=_fake_recognize(image_files["reference"], "参考答案文本", "整图文本")), \
+         patch("services.batch.default_store", return_value=store), \
+         patch("services.batch_scoring.grade_batch", return_value=[_result(70.0)]) as mock_grade, \
+         patch("services.error_category.classify_error", return_value=("部分正确", "")), \
+         patch("services.batch.update_task", wraps=task_store.update_task):
+        run_batch_job(task_id, image_files["reference"], image_files["works"],
+                      lang="ch", enable_segment=False, error_ai_mode=False)
+
+    assert mock_grade.call_count == len(image_files["works"])
+    assert all(call.kwargs["quality_mode"] == "fast"
+               for call in mock_grade.call_args_list)

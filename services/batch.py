@@ -26,9 +26,11 @@ def run_batch_job(
     lang: str,
     enable_segment: bool,
     error_ai_mode: bool,
+    quality_mode: str = config.DEFAULT_ROUTING_PRESET,
 ) -> None:
     """执行一次批量批改任务：OCR 参考图、逐份分区评分、错因归类并落库。
 
+    quality_mode 选择路由预设（fast/quality），决定批量评分时的低分路由阈值。
     全程不吞异常：任何未处理异常都在末尾统一捕获，标记任务失败后重新抛出，
     供后台线程的异常钩子记录完整堆栈。
     """
@@ -52,7 +54,7 @@ def run_batch_job(
             )
             regions = _regions_of(work_path, lang, enable_segment)
             work_texts = [region["work_text"] for region in regions]
-            results = _scores_for(reference_text, work_texts)
+            results = _scores_for(reference_text, work_texts, quality_mode)
             for region, result in zip(regions, results):
                 category, reason = _classify_for(
                     reference_text, region["work_text"], result["score"], error_ai_mode
@@ -126,8 +128,11 @@ def _regions_of(path: str, lang: str, enable_segment: bool) -> list[dict]:
     return [{"question_no": 1, "work_text": text}]
 
 
-def _scores_for(reference_text: str, work_texts: list[str]) -> list[dict]:
-    """对一份作业的多个区域文本批量评分；参考文本为空时统一给 0 分（离线）。"""
+def _scores_for(reference_text: str, work_texts: list[str], quality_mode: str) -> list[dict]:
+    """对一份作业的多个区域文本批量评分；参考文本为空时统一给 0 分（离线）。
+
+    quality_mode 选择路由预设（fast/quality），透传给 grade_batch 决定低分路由阈值。
+    """
     if not reference_text:
         return [
             {"score": 0.0, "method": "offline", "degraded": False, "routed": False}
@@ -135,7 +140,9 @@ def _scores_for(reference_text: str, work_texts: list[str]) -> list[dict]:
         ]
     from services.batch_scoring import grade_batch
 
-    return grade_batch(reference_text, work_texts, force_online=False)
+    return grade_batch(
+        reference_text, work_texts, force_online=False, quality_mode=quality_mode
+    )
 
 
 def _classify_for(
