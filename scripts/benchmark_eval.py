@@ -19,8 +19,12 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 
 import numpy as np
+
+# 支持 `python scripts/xxx.py` 直接运行：把项目根加入 sys.path，使 services/utils 可导入
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from services.eval_set import load_generated_cases
 from services.scoring import offline_score, should_route

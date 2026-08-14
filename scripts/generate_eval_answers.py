@@ -16,6 +16,9 @@ import json
 import sys
 from pathlib import Path
 
+# 支持 `python scripts/xxx.py` 直接运行：把项目根加入 sys.path，使 services/utils 可导入
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from services.deepseek import get_client
 from services.eval_set import load_gaokao_questions
 from utils import config
