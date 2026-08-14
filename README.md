@@ -72,6 +72,8 @@ pytest
 
 路由策略与阈值在 utils/config.py 配置：ROUTING_MODE 取 threshold（低分路由）/ band（中段边界带）/ off（关闭路由），对应 LOW_THRESHOLD、BAND_LOW、BAND_HIGH。在线评分失败时自动降级为离线评分，并在结果中通过 degraded 字段标记。
 
+2.7.0 起路由支持双档预设（ROUTING_PRESETS），评分时由使用者在 fast 与 quality 之间自选，前端单文本与批量页均提供下拉框，请求体携带 quality 字段（`fast` 默认 / `quality`）。fast 沿用低分阈值 60（差档作答路由率约 23%，总路由率约 12%，低成本）；quality 将阈值提高到 80（差档作答路由率约 78%，总路由率约 51%，高质但 DeepSeek 调用成本上升）。跨档的运营点权衡可用 `python scripts/sweep_routing.py` 扫描，支持自定义阈值与 band 区间。
+
 离线评分首次调用会从 HuggingFace 下载多语言嵌入模型（约 118MB），需联网一次。之后模型已缓存时加载走本地快照路径，完全离线、不发网络请求。国内访问 huggingface.co 超时时，在 `.env` 中设 `HF_ENDPOINT=https://hf-mirror.com` 走镜像。
 
 ## ESRGAN 图像增强（备选）
