@@ -1,7 +1,7 @@
 """Flask 路由：批量批改异步任务提交与状态查询。"""
 import logging
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, render_template, request
 
 from utils.config import ERROR_AI_MODE, OCR_LANG_MAP
 from utils.files import allowed_file, save_upload
@@ -64,3 +64,9 @@ def batch_task(task_id: str):
     if task is None:
         return jsonify({"message": "任务不存在"}), 404
     return jsonify(task), 200
+
+
+@bp.route('/batch')
+def batch_page():
+    """渲染批量批改页面。"""
+    return render_template('batch.html')
