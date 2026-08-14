@@ -1,38 +1,35 @@
-"""RRDBNet 超分网络结构（迁移自 ESRGAN 官方实现）。
+"""Real-ESRGAN 的 RRDBNet 网络结构（迁移自 realesrgan/archs/rrdbnet_arch.py，Apache 2.0）。
 
-仅包含网络定义，不含模型加载与推理副作用，供 services.enhance 懒加载使用。
-注意：属性名（RRDB_trunk、HRconv、RDB1 等）必须与官方预训练权重的
-state_dict 键保持一致，否则 load_state_dict(strict=True) 会因键不匹配而失败。
+与原始 ESRGAN 的结构差异在于：残差主体键名为 body.*、上采样用 conv_up* 加最近邻
+插值（而非 PixelShuffle 的 upconv*）。x4plus 权重只有 conv_up1/conv_up2 两层，
+4x 由两次 scale_factor=2 的最近邻插值叠加得到。加载 RealESRGAN_x4plus.pth 时
+键名必须与此一致，否则 load_state_dict(strict=True) 会因键名不匹配失败。
 """
-import functools
-from typing import Callable
+from typing import Any
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 
-def make_layer(block: Callable[[], nn.Module], n_layers: int) -> nn.Sequential:
-    """将 block 类重复 n_layers 次堆叠为 Sequential 模块。"""
-    layers = [block() for _ in range(n_layers)]
-    return nn.Sequential(*layers)
+def make_layer(basic_block: type, num_basic_block: int, **kwargs: Any) -> nn.Sequential:
+    """堆叠 num_basic_block 个同构块，返回 Sequential。"""
+    return nn.Sequential(*[basic_block(**kwargs) for _ in range(num_basic_block)])
 
 
 class ResidualDenseBlock_5C(nn.Module):
-    """残差稠密块：5 个卷积的稠密连接，输出按 0.2 残差缩放后与输入相加。"""
+    """残差稠密块：5 层卷积逐级 concat 增长通道，末层残差缩放 0.2 相加。"""
 
-    def __init__(self, nf: int = 64, gc: int = 32, bias: bool = True) -> None:
+    def __init__(self, num_feat: int = 64, num_grow_ch: int = 32) -> None:
         super().__init__()
-        # gc: growth channel，即每层卷积的输出通道增量
-        self.conv1 = nn.Conv2d(nf, gc, 3, 1, 1, bias=bias)
-        self.conv2 = nn.Conv2d(nf + gc, gc, 3, 1, 1, bias=bias)
-        self.conv3 = nn.Conv2d(nf + 2 * gc, gc, 3, 1, 1, bias=bias)
-        self.conv4 = nn.Conv2d(nf + 3 * gc, gc, 3, 1, 1, bias=bias)
-        self.conv5 = nn.Conv2d(nf + 4 * gc, nf, 3, 1, 1, bias=bias)
+        self.conv1 = nn.Conv2d(num_feat, num_grow_ch, 3, 1, 1)
+        self.conv2 = nn.Conv2d(num_feat + num_grow_ch, num_grow_ch, 3, 1, 1)
+        self.conv3 = nn.Conv2d(num_feat + 2 * num_grow_ch, num_grow_ch, 3, 1, 1)
+        self.conv4 = nn.Conv2d(num_feat + 3 * num_grow_ch, num_grow_ch, 3, 1, 1)
+        self.conv5 = nn.Conv2d(num_feat + 4 * num_grow_ch, num_feat, 3, 1, 1)
         self.lrelu = nn.LeakyReLU(negative_slope=0.2, inplace=True)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """稠密连接前向，返回 x5 * 0.2 + x。"""
         x1 = self.lrelu(self.conv1(x))
         x2 = self.lrelu(self.conv2(torch.cat((x, x1), 1)))
         x3 = self.lrelu(self.conv3(torch.cat((x, x1, x2), 1)))
@@ -42,46 +39,53 @@ class ResidualDenseBlock_5C(nn.Module):
 
 
 class RRDB(nn.Module):
-    """Residual in Residual Dense Block：3 个残差稠密块的嵌套残差结构。"""
+    """残差中的残差稠密块：3 个 RDB 串联，整体残差缩放 0.2。"""
 
-    def __init__(self, nf: int, gc: int = 32) -> None:
+    def __init__(self, num_feat: int, num_grow_ch: int = 32) -> None:
         super().__init__()
-        self.RDB1 = ResidualDenseBlock_5C(nf, gc)
-        self.RDB2 = ResidualDenseBlock_5C(nf, gc)
-        self.RDB3 = ResidualDenseBlock_5C(nf, gc)
+        self.rdb1 = ResidualDenseBlock_5C(num_feat, num_grow_ch)
+        self.rdb2 = ResidualDenseBlock_5C(num_feat, num_grow_ch)
+        self.rdb3 = ResidualDenseBlock_5C(num_feat, num_grow_ch)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """三级稠密块串联后返回 out * 0.2 + x。"""
-        out = self.RDB1(x)
-        out = self.RDB2(out)
-        out = self.RDB3(out)
+        out = self.rdb1(x)
+        out = self.rdb2(out)
+        out = self.rdb3(out)
         return out * 0.2 + x
 
 
 class RRDBNet(nn.Module):
-    """RRDBNet 主网络：conv_first → RRDB trunk → 两级 2x 最近邻上采样 → conv_last。
+    """Real-ESRGAN 主干网络，默认配置 64 特征通道、23 个 RRDB、增长 32。"""
 
-    输入输出均为 3 通道、0-1 归一化的 Tensor，整体放大倍数固定为 4x。
-    """
-
-    def __init__(self, in_nc: int, out_nc: int, nf: int, nb: int, gc: int = 32) -> None:
+    def __init__(
+        self,
+        num_in_ch: int,
+        num_out_ch: int,
+        scale: int = 4,
+        num_feat: int = 64,
+        num_block: int = 23,
+        num_grow_ch: int = 32,
+    ) -> None:
         super().__init__()
-        rrdb_block_f = functools.partial(RRDB, nf=nf, gc=gc)
-        self.conv_first = nn.Conv2d(in_nc, nf, 3, 1, 1, bias=True)
-        self.RRDB_trunk = make_layer(rrdb_block_f, nb)
-        self.trunk_conv = nn.Conv2d(nf, nf, 3, 1, 1, bias=True)
-        self.upconv1 = nn.Conv2d(nf, nf, 3, 1, 1, bias=True)
-        self.upconv2 = nn.Conv2d(nf, nf, 3, 1, 1, bias=True)
-        self.HRconv = nn.Conv2d(nf, nf, 3, 1, 1, bias=True)
-        self.conv_last = nn.Conv2d(nf, out_nc, 3, 1, 1, bias=True)
+        self.scale = scale
+        if scale == 2:
+            num_in_ch = num_in_ch * 4
+        elif scale == 1:
+            num_in_ch = num_in_ch * 16
+        self.conv_first = nn.Conv2d(num_in_ch, num_feat, 3, 1, 1)
+        self.body = make_layer(RRDB, num_block, num_feat=num_feat, num_grow_ch=num_grow_ch)
+        self.conv_body = nn.Conv2d(num_feat, num_feat, 3, 1, 1)
+        self.conv_up1 = nn.Conv2d(num_feat, num_feat, 3, 1, 1)
+        self.conv_up2 = nn.Conv2d(num_feat, num_feat, 3, 1, 1)
+        self.conv_hr = nn.Conv2d(num_feat, num_feat, 3, 1, 1)
+        self.conv_last = nn.Conv2d(num_feat, num_out_ch, 3, 1, 1)
         self.lrelu = nn.LeakyReLU(negative_slope=0.2, inplace=True)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """前向：残差主干特征叠加后经两级最近邻上采样输出 4x 图像。"""
-        fea = self.conv_first(x)
-        trunk = self.trunk_conv(self.RRDB_trunk(fea))
-        fea = fea + trunk
-        fea = self.lrelu(self.upconv1(F.interpolate(fea, scale_factor=2, mode='nearest')))
-        fea = self.lrelu(self.upconv2(F.interpolate(fea, scale_factor=2, mode='nearest')))
-        out = self.conv_last(self.lrelu(self.HRconv(fea)))
+        feat = self.conv_first(x)
+        body_feat = self.conv_body(self.body(feat))
+        feat = feat + body_feat
+        feat = self.lrelu(self.conv_up1(F.interpolate(feat, scale_factor=2, mode="nearest")))
+        feat = self.lrelu(self.conv_up2(F.interpolate(feat, scale_factor=2, mode="nearest")))
+        out = self.conv_last(self.lrelu(self.conv_hr(feat)))
         return out
