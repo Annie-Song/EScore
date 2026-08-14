@@ -63,7 +63,26 @@ pytest
 
 路由策略与阈值在 utils/config.py 配置：ROUTING_MODE 取 threshold（低分路由）/ band（中段边界带）/ off（关闭路由），对应 LOW_THRESHOLD、BAND_LOW、BAND_HIGH。在线评分失败时自动降级为离线评分，并在结果中通过 degraded 字段标记。
 
-离线评分首次调用会从 HuggingFace 下载多语言嵌入模型（约 118MB），需联网一次，之后本地缓存。国内访问 huggingface.co 超时时，在 `.env` 中设 `HF_ENDPOINT=https://hf-mirror.com` 走镜像。
+离线评分首次调用会从 HuggingFace 下载多语言嵌入模型（约 118MB），需联网一次。之后模型已缓存时加载走本地快照路径，完全离线、不发网络请求。国内访问 huggingface.co 超时时，在 `.env` 中设 `HF_ENDPOINT=https://hf-mirror.com` 走镜像。
+
+## ESRGAN 图像增强（备选）
+
+当上传的作业图片质量较低、首次 OCR 识别的平均置信度低于阈值（默认 0.6，见 `utils/config.py` 的 `ENHANCE_CONFIDENCE_THRESHOLD`）时，系统会自动调用 ESRGAN 对图片做 4x 超分并重新识别；若增强后的识别置信度更高则采用增强结果，否则维持原识别文本。该功能为备选增强，不影响 OCR 主流程。
+
+增强使用 Real-ESRGAN 官方预训练权重 `RealESRGAN_x4plus.pth`（real-world 退化训练，对模糊/噪点/JPEG 压缩的作业图片效果优于原版 ESRGAN）。该文件不在代码仓库内，需从 [Real-ESRGAN GitHub Releases](https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth) 下载，放入 `ESRGAN/models/` 目录。国内直连 GitHub Releases 超时时，可用代理镜像 `https://gh-proxy.com/https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth`（`curl -C -` 支持断点续传）。权重文件缺失或加载失败时，系统自动降级为普通识别，仅在日志中记录一次警告，OCR 主流程不受影响。
+
+注意增强在 CPU 上运行较慢（每张图需数秒到数十秒），且仅低置信度图片会触发；如需完全跳过增强，可删除权重文件或将 `ENHANCE_CONFIDENCE_THRESHOLD` 调低。
+
+## 批量批改与统计报告（2.4.0）
+
+首页点击「前往批量批改页」进入 `/batch`，一次上传一份参考答案图片与多份作业图片，系统自动逐份识别并评分，产出每题得分明细与统计报告。
+
+- **异步批改**：提交即返回任务 ID，后台线程执行，前端轮询进度，长耗时批改不阻塞请求。
+- **作业智能分区**：勾选「智能分区」后，对一张图含多道题的作业先用水平投影按题号答案切分为独立区域，逐区域 OCR 与评分，实现一图多题分别打分。
+- **错因归类**：默认按分数规则分档（未作答/概念错误/要点遗漏/部分正确/掌握良好）；进阶可开启「AI 错因归类」，对 30-85 分模糊带的题目调 DeepSeek 结构化归类并给出一句话原因。
+- **持久化与统计**：批改记录落 SQLite（`output/grades.db`），可按题查看人数/平均分/最高/最低/及格率/未作答数，按错因查看分布，并下载 HTML/Word 统计报告。
+
+批量评分对参考答案嵌入做预计算缓存，同一参考对多份作业只编码一次参考向量，全部答案一次批量编码（N=20 时较逐对评分快约 4.7 倍）。
 
 ## 训练数据来源
 
