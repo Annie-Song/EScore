@@ -27,14 +27,14 @@ description: 执行一次完整迭代闭环（确定版本号→开版本分支�
 2. 从 main 开版本分支 version/x.y.z
 3. 冒烟检查（ggrade 环境）：python -c "from app import create_app"
 4. 读取上轮产物：迭代反馈表、bugLOG、上一版版本迭代报告
-5. 预检固定项（避免重复踩坑）：memory/ 已被 .gitignore 忽略，git add/commit 永不收录 memory/；交付前约束门禁脚本位于 scripts/check_constraints.py，Phase 2 步骤 12 必须通过
+5. 预检固定项（避免重复踩坑）：memory/ 已被 .gitignore 忽略，git add/commit 永不收录 memory/；交付前约束门禁脚本位于 scripts/check_constraints.py，Phase 2 步骤 12 必须通过；压测可复用脚本位于 scripts/bench_embedding.py，Phase 3 步骤 18 优先使用、不临时手写
 
 ## Phase 1 规划
 
 5. 筛"待处理"且 P0/P1 的问题，加用户新需求，按优先级排序
 6. 为每个任务写 plan：目标、方案、涉及文件、验收标准（DoD）、依赖关系
 7. 关键方案用 AskUserQuestion 给多选让用户拍板；架构/取舍类问题把推荐项放第一选项并标注"（推荐）"，减少澄清往返
-8. 涉及性能的任务先记录优化前基线
+8. 涉及性能的任务先记录优化前基线，并写明收益预测及依据假设（如"参考重编码=独立全成本"）；实测后若与预测偏差大，按假设归因，预测失效本身也是量化产出
 
 ## Phase 2 执行（内循环，逐任务）
 
@@ -51,7 +51,7 @@ description: 执行一次完整迭代闭环（确定版本号→开版本分支�
 ## Phase 3 联合测试
 
 17. 端到端联调（首页、OCR、评分全链路）+ 回归测试
-18. 涉及核心功能（OCR、评分、批改链路）→ 压测记入 memory/测试报告集/压力测试报告集/压力测试报告_vX.Y.Z.md
+18. 涉及核心功能（OCR、评分、批改链路）→ 压测记入 memory/测试报告集/压力测试报告集/压力测试报告_vX.Y.Z.md；压测优先复用 scripts/bench_embedding.py，不临时手写；跑前先小规模校准（--calibrate：校验端点方法——/health 是 GET、其余 POST；httpx.Client 连接复用；同会话 before/after A/B 对照），校准通过再正式测量
 19. 联调失败且短时间修不好 → 回退上一版本 commit，保持 main 可运行
 20. 有 bug 回 Phase 2
 
@@ -63,4 +63,4 @@ description: 执行一次完整迭代闭环（确定版本号→开版本分支�
 24. 增量提炼优化量化：本轮涉及性能优化或模型选型且有实测对比时，把新量化数据（前后对比数字、选择思路）追加到 memory/优化量化.md，沿用其文字+表格结构，避免项目收尾时集中回溯全部报告浪费 token；无新增量化数据则跳过
 25. 同步 requirements.txt（若依赖有变更）
 26. 更新迭代反馈表：把"已完成"条目移入 已完成迭代反馈表.md，活跃表只留待处理/进行中/已延后
-27. loop 自省：哪里卡、哪里冗余，输出工作流优化建议
+27. loop 自省：哪里卡、哪里冗余，输出工作流优化建议；若性能任务实测与 Phase 1 步骤 8 记录的预测偏差大，把偏差归因写入当轮版本报告经验教训（预测失效也是量化产出），可再次沉淀为流程规则
