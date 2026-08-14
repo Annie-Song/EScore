@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>智能作业批改系统</title>
+  <title>批量作业批改</title>
   <style>
     :root {
       --primary-color: #007aff;
@@ -166,23 +166,6 @@
     .page-header p {
       color: var(--light-text);
       font-size: 16px;
-    }
-
-    .batch-entry {
-      display: inline-block;
-      margin-top: 12px;
-      padding: 8px 18px;
-      background-color: var(--primary-color);
-      color: white;
-      border-radius: var(--border-radius);
-      text-decoration: none;
-      font-weight: 500;
-      font-size: 14px;
-      transition: background 0.3s;
-    }
-
-    .batch-entry:hover {
-      background-color: var(--secondary-color);
     }
 
     .card {
@@ -568,6 +551,100 @@
       border-color: var(--secondary-color);
       transform: scale(1.05);
     }
+
+    /* 批量页新增样式 */
+    .back-link {
+      display: inline-block;
+      margin-top: 8px;
+      color: var(--primary-color);
+      text-decoration: none;
+      font-size: 15px;
+    }
+
+    .back-link:hover {
+      text-decoration: underline;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 15px;
+    }
+
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius);
+      padding: 16px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: var(--primary-color);
+    }
+
+    .stat-label {
+      margin-top: 4px;
+      color: var(--light-text);
+      font-size: 13px;
+    }
+
+    .stats-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    .stats-table th,
+    .stats-table td {
+      border: 1px solid var(--border-color);
+      padding: 8px 10px;
+      text-align: left;
+      font-size: 14px;
+    }
+
+    .stats-table th {
+      background: var(--light-bg);
+      color: var(--dark-text);
+      font-weight: 600;
+    }
+
+    .table-scroll {
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius);
+    }
+
+    .table-scroll .stats-table {
+      margin-top: 0;
+    }
+
+    .table-scroll .stats-table th {
+      position: sticky;
+      top: 0;
+    }
+
+    .summary-text {
+      max-width: 240px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .empty {
+      text-align: center;
+      color: var(--light-text);
+      padding: 20px;
+    }
+
+    .progress-text {
+      margin-top: 8px;
+      color: var(--light-text);
+      font-size: 14px;
+    }
   </style>
 </head>
 
@@ -587,13 +664,40 @@
   </div>
   <div class="container">
     <div class="page-header">
-      <h1>智能作业批改系统</h1>
-      <p>上传作业图片和答案，自动识别文本并进行智能比对</p>
-      <a href="/batch" class="batch-entry">前往批量批改页</a>
+      <h1>批量作业批改</h1>
+      <p>上传参考答案与多份作业图片，自动识别、评分并生成统计报告</p>
+      <a href="/" class="back-link">← 返回首页</a>
     </div>
-    <form id="ocrForm">
+    <form id="batchForm">
       <div class="card">
-        <div class="card-title"><span>1</span>选择识别参数</div>
+        <div class="card-title"><span>1</span>上传图片</div>
+        <div class="form-row">
+          <div class="form-column">
+            <label>参考答案图片：</label>
+            <div class="file-input-container">
+              <div class="file-input-label" id="refImageLabel">
+                <div>
+                  点击或拖放参考答案图片到此处<br /><small>支持 JPG, PNG 格式</small>
+                </div>
+              </div>
+              <input type="file" id="refInput" accept="image/*" />
+            </div>
+          </div>
+          <div class="form-column">
+            <label>作业图片（可多选）：</label>
+            <div class="file-input-container">
+              <div class="file-input-label" id="workInputLabel">
+                <div>
+                  点击或拖放作业图片到此处<br /><small>支持 JPG, PNG 格式，可多选</small>
+                </div>
+              </div>
+              <input type="file" id="workInput" accept="image/*" multiple />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span>2</span>识别参数</div>
         <div class="form-row">
           <div class="form-column">
             <label for="language">识别语言：</label>
@@ -603,152 +707,107 @@
             </select>
           </div>
         </div>
-      </div>
-      <div class="card">
-        <div class="card-title"><span>2</span>上传图片</div>
-        <div class="form-row">
-          <div class="form-column">
-            <label>学生作业图片：</label>
-            <div class="file-input-container">
-              <div class="file-input-label" id="workImageLabel">
-                <div>
-                  点击或拖放图片到此处<br /><small>支持 JPG, PNG 格式</small>
-                </div>
-              </div>
-              <input type="file" id="fileInput1" accept="image/*" />
-            </div>
-            <img id="img1" alt="作业图片预览" class="img-preview" />
-            <button type="button" id="cancelStudentImage" class="cancel-btn" style="display: none">
-              取消选择
-            </button>
-          </div>
-          <div class="form-column">
-            <label>参考答案图片：</label>
-            <div class="file-input-container">
-              <div class="file-input-label" id="answerImageLabel">
-                <div>
-                  点击或拖放图片到此处<br /><small>支持 JPG, PNG 格式</small>
-                </div>
-              </div>
-              <input type="file" id="fileInput2" accept="image/*" />
-            </div>
-            <img id="img2" alt="答案图片预览" class="img-preview" />
-            <button type="button" id="cancelAnswerImage" class="cancel-btn" style="display: none">
-              取消选择
-            </button>
-          </div>
+        <div class="custom-checkbox-container">
+          <input type="checkbox" id="enableSegment" class="custom-checkbox">
+          <label for="enableSegment" class="custom-checkbox-label">
+            <span class="checkbox-icon"></span>
+            智能分区（一图多题切分）
+          </label>
+        </div>
+        <div class="custom-checkbox-container">
+          <input type="checkbox" id="errorAiMode" class="custom-checkbox">
+          <label for="errorAiMode" class="custom-checkbox-label">
+            <span class="checkbox-icon"></span>
+            AI 错因归类（进阶）
+          </label>
         </div>
       </div>
       <div class="btn-container">
-        <button type="button" id="ScanButton" class="full-width-btn" disabled>
-          <span>开始图片文本识别</span>
+        <button type="button" id="startBatchBtn" class="full-width-btn" disabled>
+          <span>开始批量批改</span>
         </button>
       </div>
       <div id="progressContainer" style="display: none">
         <progress id="progressBar" value="0" max="100"></progress>
-      </div>
-      <div class="card" id="textResultCard" style="display: none">
-        <div class="card-title"><span>3</span>OCR识别结果</div>
-        <div class="form-row">
-          <div class="form-column">
-            <label for="content_work">学生作业内容：</label>
-            <textarea id="content_work" placeholder="学生作业内容将显示在这里..." rows="8"></textarea>
-            <button type="button" id="undoButtonWork" style="margin-bottom: 15px">
-              撤销修改
-            </button>
-          </div>
-          <div class="form-column">
-            <label for="content_answer">参考答案内容：</label>
-            <textarea id="content_answer" placeholder="参考答案内容将显示在这里..." rows="8"></textarea>
-            <button type="button" id="undoButtonAnswer" style="margin-bottom: 15px">
-              撤销修改
-            </button>
-          </div>
-        </div>
-        <p style="
-              margin-bottom: 15px;
-              color: var(--light-text);
-              font-size: 14px;
-            ">
-          提示：您可以手动编辑上面的文本以修正任何识别错误
-        </p>
-      </div>
-      <div class="btn-container" id="compareButtonContainer" style="display: none">
-        <button type="button" id="CompareButton" class="full-width-btn btn-success">
-          <span>开始智能文本匹配比对</span>
-        </button>
-        <div class="card" id="enhancedScoreContainer" style="display: none; margin-top: 15px; margin-bottom: 15px;">
-          <div class="form-row" style="margin: 0;">
-            <div class="form-column" style="display: flex; flex-direction: column; align-items: flex-start;">
-              <div class="custom-checkbox-container">
-                <input type="checkbox" id="enableDeepseek" class="custom-checkbox">
-                <label for="enableDeepseek" class="custom-checkbox-label">
-                  <span class="checkbox-icon"></span>
-                  强制 DeepSeek 精排
-                </label>
-              </div>
-            </div>
-            <p style="
-                  margin-top: 6px;
-                  color: var(--light-text);
-                  font-size: 13px;
-                ">
-              不勾选：系统自动判断，先离线快速评分，把握不大时自动转 DeepSeek 精排（更快更省）；勾选：每次都用 DeepSeek 精排（更准但更慢）。
-            </p>
-          </div>
-        </div>
-      </div>
-      <div class="similarity-score" id="similarityDisplay" style="display: none">
-        <h3>作业评分</h3>
-        <div id="similarityScore" style="font-size: 36px; font-weight: bold">
-          --
-        </div>
-      </div>
-      <div class="card" id="downloadCard" style="display: none">
-        <div class="card-title"><span>4</span>下载批改结果</div>
-        <p style="
-              margin-bottom: 15px;
-              color: var(--light-text);
-              font-size: 14px;
-            ">
-          选择格式下载批改报告，HTML 可直接浏览器打开打印，Word 可二次编辑。
-        </p>
-        <div class="form-row">
-          <div class="form-column">
-            <button type="button" id="downloadHtmlButton" class="full-width-btn">
-              下载 HTML 报告
-            </button>
-          </div>
-          <div class="form-column">
-            <button type="button" id="downloadDocxButton" class="full-width-btn">
-              下载 Word 报告
-            </button>
-          </div>
-        </div>
+        <p id="progressText" class="progress-text"></p>
       </div>
     </form>
+
+    <div class="result-container" id="resultArea">
+      <div class="result-header">
+        <h2>批改结果</h2>
+      </div>
+      <div class="card">
+        <div class="card-title"><span>统</span>统计概览</div>
+        <div class="stats-grid" id="summaryCards"></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span>题</span>每题统计</div>
+        <table class="stats-table" id="questionTable">
+          <thead>
+            <tr>
+              <th>题号</th>
+              <th>人数</th>
+              <th>平均</th>
+              <th>最高</th>
+              <th>最低</th>
+              <th>及格率</th>
+              <th>未作答</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title"><span>因</span>错因分布</div>
+        <table class="stats-table" id="categoryTable">
+          <thead>
+            <tr>
+              <th>错因</th>
+              <th>人数</th>
+              <th>平均分</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title"><span>明</span>批改明细</div>
+        <div class="table-scroll">
+          <table class="stats-table" id="recordTable">
+            <thead>
+              <tr>
+                <th>题号</th>
+                <th>得分</th>
+                <th>评分方式</th>
+                <th>是否精排</th>
+                <th>是否降级</th>
+                <th>错因</th>
+                <th>作答文本摘要</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="btn-container">
+        <button type="button" id="downloadHtmlBtn" class="full-width-btn">
+          下载统计报告（HTML）
+        </button>
+        <button type="button" id="downloadDocxBtn" class="full-width-btn btn-success">
+          下载统计报告（Word）
+        </button>
+      </div>
+    </div>
+
     <div class="notification" id="notification">
       <div id="notificationMessage"></div>
     </div>
   </div>
   <script>
-    let originalWorkText = "";
-    let originalAnswerText = "";
-    let progressInterval = null;
-    // 最近一次文本比对结果（score/method/degraded/routed），供下载报告使用
-    let lastResult = null;
-
-    function roundToHalf(value) {
-      const converted = parseFloat(value);
-      const decimal = converted - Math.floor(converted);
-      if (decimal < 0.25) {
-        return Math.floor(converted);
-      } else if (decimal < 0.75) {
-        return Math.floor(converted) + 0.5;
-      } else {
-        return Math.ceil(converted);
-      }
-    }
+    let pollInterval = null;
+    // 最近一次成功的批次 ID，供下载统计报告使用
+    let currentBatchId = null;
 
     document.addEventListener("DOMContentLoaded", function () {
       const themeToggle = document.getElementById("themeToggle");
@@ -800,31 +859,18 @@
       notification.className = "notification";
       notification.classList.add(type);
       notificationMessage.textContent = message;
-      notification.style.display = "flex"; // 显示通知
+      notification.style.display = "flex";
       setTimeout(() => {
-        notification.style.display = "none"; // 3秒后隐藏
+        notification.style.display = "none";
       }, 3000);
     }
 
     function startProgress() {
-      const progressBar = document.getElementById("progressBar");
-      progressBar.value = 0;
+      document.getElementById("progressBar").value = 0;
       document.getElementById("progressContainer").style.display = "block";
-      progressInterval = setInterval(function () {
-        if (progressBar.value < 90) {
-          progressBar.value += 10;
-        } else {
-          clearInterval(progressInterval);
-          progressInterval = null;
-        }
-      }, 300);
     }
 
     function finishProgress() {
-      if (progressInterval) {
-        clearInterval(progressInterval);
-        progressInterval = null;
-      }
       const progressBar = document.getElementById("progressBar");
       progressBar.value = 100;
       setTimeout(function () {
@@ -833,261 +879,255 @@
       }, 500);
     }
 
-    // 图片选择后的更新
-    function updateImagePreview(fileInputId, labelId, imgId, cancelBtnId) {
-      const fileInput = document.getElementById(fileInputId);
-      const label = document.getElementById(labelId);
-      const preview = document.getElementById(imgId);
-      const cancelBtn = document.getElementById(cancelBtnId);
-      const file = fileInput.files[0];
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
 
-      if (file) {
-        // 先进行缩放动画
-        label.style.transform = "scale(1.05)"; // 放大
-        label.style.transition = "transform 0.2s ease"; // 动画过渡
-
-        setTimeout(() => {
-          label.classList.add("has-file");
-          label.innerHTML = `<div>已选择: ${file.name}</div>`;
-          preview.src = URL.createObjectURL(file);
-          preview.style.display = "block";
-          cancelBtn.style.display = "inline-block";
-          checkFilesAndShowButtons();
-
-          // 恢复原始大小
-          label.style.transform = "scale(1)"; // 恢复缩放
-        }, 200); // 延迟200毫秒确保视觉体验
+    function fmtPct(value) {
+      if (value === null || value === undefined || value === "") {
+        return "--";
       }
+      return Math.round(Number(value)) + "%";
     }
 
-    function cancelImageSelection(
-      fileInputId,
-      labelId,
-      imgId,
-      cancelBtnId,
-      type
-    ) {
-      const fileInput = document.getElementById(fileInputId);
-      const label = document.getElementById(labelId);
-      const preview = document.getElementById(imgId);
-      const cancelBtn = document.getElementById(cancelBtnId);
+    function methodLabel(method) {
+      return method === "online" ? "在线 DeepSeek 精排" : "离线向量相似度";
+    }
 
-      fileInput.value = "";
-      label.classList.remove("has-file");
-      label.innerHTML = `<div>点击或拖放图片到此处<br /><small>支持 JPG, PNG 格式</small></div>`;
-      preview.style.display = "none";
-      cancelBtn.style.display = "none";
+    function truncate(text, max) {
+      const s = text || "";
+      return s.length > max ? s.slice(0, max) + "…" : s;
+    }
 
-      if (type === "student") {
-        document.getElementById("content_work").value = "";
-        originalWorkText = "";
-        showNotification("已取消学生作业图片的上传", "success");
-      } else if (type === "answer") {
-        document.getElementById("content_answer").value = "";
-        originalAnswerText = "";
-        showNotification("已取消参考答案图片的上传", "success");
+    // 图片选择后的文件标签与按钮可用态更新
+    function updateFileLabels() {
+      const refInput = document.getElementById("refInput");
+      const workInput = document.getElementById("workInput");
+      const refLabel = document.getElementById("refImageLabel");
+      const workLabel = document.getElementById("workInputLabel");
+      if (refInput.files[0]) {
+        refLabel.classList.add("has-file");
+        refLabel.innerHTML = `<div>已选择: ${escapeHtml(refInput.files[0].name)}</div>`;
+      } else {
+        refLabel.classList.remove("has-file");
+        refLabel.innerHTML =
+          `<div>点击或拖放参考答案图片到此处<br /><small>支持 JPG, PNG 格式</small></div>`;
       }
-
-      document.getElementById("textResultCard").style.display = "none";
-      document.getElementById("compareButtonContainer").style.display =
-        "none";
-      document.getElementById("enhancedScoreContainer").style.display = "none";
-      document.getElementById("similarityDisplay").style.display = "none";
-      document.getElementById("downloadCard").style.display = "none";
-
-      checkFilesAndShowButtons();
-    }
-
-    function checkFilesAndShowButtons() {
-      const file1 = document.getElementById("fileInput1").files[0];
-      const file2 = document.getElementById("fileInput2").files[0];
-      const scanButton = document.getElementById("ScanButton");
-      scanButton.disabled = !(file1 && file2);
+      const count = workInput.files.length;
+      if (count > 0) {
+        workLabel.classList.add("has-file");
+        workLabel.innerHTML = `<div>已选择 ${count} 份作业图片</div>`;
+      } else {
+        workLabel.classList.remove("has-file");
+        workLabel.innerHTML =
+          `<div>点击或拖放作业图片到此处<br /><small>支持 JPG, PNG 格式，可多选</small></div>`;
+      }
+      document.getElementById("startBatchBtn").disabled =
+        !(refInput.files[0] && count > 0);
     }
 
     document
-      .getElementById("fileInput1")
-      .addEventListener("change", function () {
-        updateImagePreview(
-          "fileInput1",
-          "workImageLabel",
-          "img1",
-          "cancelStudentImage"
-        );
-      });
-
+      .getElementById("refInput")
+      .addEventListener("change", updateFileLabels);
     document
-      .getElementById("fileInput2")
-      .addEventListener("change", function () {
-        updateImagePreview(
-          "fileInput2",
-          "answerImageLabel",
-          "img2",
-          "cancelAnswerImage"
-        );
-      });
+      .getElementById("workInput")
+      .addEventListener("change", updateFileLabels);
 
+    // 提交批量批改任务
     document
-      .getElementById("cancelStudentImage")
-      .addEventListener("click", function () {
-        cancelImageSelection(
-          "fileInput1",
-          "workImageLabel",
-          "img1",
-          "cancelStudentImage",
-          "student"
-        );
-      });
-
-    document
-      .getElementById("cancelAnswerImage")
-      .addEventListener("click", function () {
-        cancelImageSelection(
-          "fileInput2",
-          "answerImageLabel",
-          "img2",
-          "cancelAnswerImage",
-          "answer"
-        );
-      });
-
-    document
-      .getElementById("ScanButton")
+      .getElementById("startBatchBtn")
       .addEventListener("click", async () => {
-        const scanButton = document.getElementById("ScanButton");
-        const fileInput1 = document.getElementById("fileInput1");
-        const fileInput2 = document.getElementById("fileInput2");
-        if (!fileInput1.files[0] || !fileInput2.files[0]) {
-          showNotification("请提供作业图片和参考答案图片！", "error");
+        const refInput = document.getElementById("refInput");
+        const workInput = document.getElementById("workInput");
+        if (!refInput.files[0] || workInput.files.length === 0) {
+          showNotification("请选择参考答案图片和至少一份作业图片！", "error");
           return;
         }
-        startProgress();
-        scanButton.classList.add("loading");
-        scanButton.querySelector("span").textContent = "正在识别..."; // 更改按钮文本
+        const startBtn = document.getElementById("startBatchBtn");
+        startBtn.classList.add("loading");
+        startBtn.querySelector("span").textContent = "提交中...";
         const formData = new FormData();
-        formData.append("file1", fileInput1.files[0]);
-        formData.append("file2", fileInput2.files[0]);
-        formData.append(
-          "language",
-          document.getElementById("language").value
-        );
+        formData.append("file2", refInput.files[0]);
+        for (const file of workInput.files) {
+          formData.append("files", file);
+        }
+        formData.append("language", document.getElementById("language").value);
+        formData.append("enable_segment", document.getElementById("enableSegment").checked);
+        formData.append("error_ai_mode", document.getElementById("errorAiMode").checked);
         try {
-          const response = await fetch("http://127.0.0.1:5000/ocr", {
+          const response = await fetch("/batch_grade", {
             method: "POST",
             body: formData,
           });
           const data = await response.json();
-          if (response.ok) {
-            document.getElementById("textResultCard").style.display = "block";
-            document.getElementById("compareButtonContainer").style.display =
-              "block";
-            document.getElementById("enhancedScoreContainer").style.display = "block";
-            document.getElementById("content_work").value = data.workContent;
-            document.getElementById("content_answer").value =
-              data.answerContent;
-            originalWorkText = data.workContent;
-            originalAnswerText = data.answerContent;
-            showNotification(
-              "文本识别成功！请检查并修正识别结果。",
-              "success"
-            );
-          } else {
-            showNotification(`处理失败：${data.message}`, "error");
+          if (!response.ok) {
+            showNotification(`提交失败：${data.message}`, "error");
+            return;
           }
+          startPolling(data.task_id);
         } catch (error) {
           showNotification(`请求出错：${error.message}`, "error");
         } finally {
-          finishProgress();
-          scanButton.classList.remove("loading");
-          scanButton.querySelector("span").textContent = "开始图片文本识别"; // 恢复按钮文本
+          startBtn.classList.remove("loading");
+          startBtn.querySelector("span").textContent = "开始批量批改";
         }
       });
 
-    document
-      .getElementById("CompareButton")
-      .addEventListener("click", async () => {
-        const compareButton = document.getElementById("CompareButton");
-        const contentWork = document.getElementById("content_work").value;
-        const contentAnswer = document.getElementById("content_answer").value;
-        if (!contentWork || !contentAnswer) {
-          showNotification("请先完成文本识别或手动输入内容！", "error");
-          return;
-        }
-        startProgress();
-        compareButton.classList.add("loading");
-        compareButton.querySelector("span").textContent = "比对中..."; // 更改按钮文本
-        const payload = {
-          workContent: contentWork,
-          answerContent: contentAnswer,
-          forceOnline: document.getElementById("enableDeepseek").checked,
-        };
+    // 轮询任务状态，成功后加载统计结果
+    function startPolling(taskId) {
+      showNotification("批量批改已开始，请稍候...", "success");
+      startProgress();
+      document.getElementById("progressText").textContent = "任务排队中...";
+      pollInterval = setInterval(async () => {
         try {
-          const response = await fetch(
-            "http://127.0.0.1:5000/compare_texts",
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
-            }
-          );
-          const data = await response.json();
-          if (response.ok) {
-            lastResult = data;
-            const score = data.score;
-            const roundedScore = roundToHalf(score);
-            const displayScore = Number.isInteger(roundedScore)
-              ? roundedScore.toFixed(0)
-              : roundedScore.toFixed(1);
-            document.getElementById("similarityScore").textContent =
-              displayScore;
-            document.getElementById("similarityDisplay").style.display =
-              "block";
-            document.getElementById("downloadCard").style.display = "block";
-            if (data.degraded) {
-              showNotification(
-                `在线评分失败，已降级为离线评分：${displayScore}`,
-                "error"
-              );
-            } else {
-              showNotification(
-                `文本匹配完成！作业评分：${displayScore}`,
-                "success"
-              );
-            }
-          } else {
-            showNotification(`错误：${data.message}`, "error");
+          const response = await fetch(`/batch_task/${taskId}`);
+          if (!response.ok) {
+            stopPolling();
+            showNotification("任务查询失败", "error");
+            return;
+          }
+          const task = await response.json();
+          document.getElementById("progressBar").value = task.progress || 0;
+          document.getElementById("progressText").textContent =
+            task.current_item && task.total_items
+              ? `已处理 ${task.current_item}/${task.total_items} 份`
+              : (task.message || "");
+          if (task.status === "succeeded") {
+            stopPolling();
+            finishProgress();
+            currentBatchId = task.result.batch_id;
+            loadResults(currentBatchId);
+          } else if (task.status === "failed") {
+            stopPolling();
+            finishProgress();
+            showNotification(`批改失败：${task.error || "未知错误"}`, "error");
           }
         } catch (error) {
-          showNotification(`请求失败：${error.message}`, "error");
-        } finally {
+          stopPolling();
           finishProgress();
-          compareButton.classList.remove("loading");
-          compareButton.querySelector("span").textContent =
-            "开始智能文本匹配比对"; // 恢复按钮文本
+          showNotification(`请求出错：${error.message}`, "error");
         }
-      });
+      }, 2000);
+    }
 
-    // 下载指定格式的批改报告（html/docx），依赖最近一次文本比对结果
-    function downloadReport(format) {
-      const contentWork = document.getElementById("content_work").value;
-      const contentAnswer = document.getElementById("content_answer").value;
-      if (!contentWork || !contentAnswer || !lastResult) {
-        showNotification("请先完成文本比对", "error");
+    function stopPolling() {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
+    }
+
+    // 加载统计概览与明细并渲染
+    async function loadResults(batchId) {
+      try {
+        const statsResponse = await fetch(`/stats/${batchId}`);
+        if (!statsResponse.ok) {
+          showNotification("加载统计失败", "error");
+          return;
+        }
+        const stats = await statsResponse.json();
+        renderSummary(stats.summary);
+        renderQuestions(stats.questions);
+        renderCategories(stats.categories);
+
+        const recordsResponse = await fetch(`/batch_records/${batchId}`);
+        const records = await recordsResponse.json();
+        renderRecords(records);
+
+        document.getElementById("resultArea").style.display = "block";
+        showNotification("批改完成！", "success");
+      } catch (error) {
+        showNotification(`加载结果出错：${error.message}`, "error");
+      }
+    }
+
+    function renderSummary(summary) {
+      const items = [
+        { label: "总份数", value: summary.total_records },
+        { label: "题目数", value: summary.question_count },
+        { label: "平均分", value: summary.avg_score },
+        { label: "最高分", value: summary.max_score },
+        { label: "最低分", value: summary.min_score },
+      ];
+      document.getElementById("summaryCards").innerHTML = items
+        .map(
+          (item) =>
+            `<div class="stat-card"><div class="stat-value">${escapeHtml(item.value)}</div><div class="stat-label">${item.label}</div></div>`
+        )
+        .join("");
+    }
+
+    function renderQuestions(questions) {
+      const tbody = document.querySelector("#questionTable tbody");
+      if (!questions || questions.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="empty">暂无数据</td></tr>`;
         return;
       }
-      const payload = {
-        workContent: contentWork,
-        answerContent: contentAnswer,
-        score: lastResult.score,
-        method: lastResult.method,
-        degraded: lastResult.degraded,
-        routed: lastResult.routed,
-        format: format,
-      };
-      fetch("http://127.0.0.1:5000/download_report", {
+      tbody.innerHTML = questions
+        .map(
+          (q) =>
+            `<tr><td>${escapeHtml(q.question_no)}</td>` +
+            `<td>${escapeHtml(q.count)}</td>` +
+            `<td>${escapeHtml(q.avg_score)}</td>` +
+            `<td>${escapeHtml(q.max_score)}</td>` +
+            `<td>${escapeHtml(q.min_score)}</td>` +
+            `<td>${fmtPct(q.pass_rate)}</td>` +
+            `<td>${escapeHtml(q.unanswered_count)}</td></tr>`
+        )
+        .join("");
+    }
+
+    function renderCategories(categories) {
+      const tbody = document.querySelector("#categoryTable tbody");
+      if (!categories || categories.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" class="empty">暂无数据</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = categories
+        .map(
+          (c) =>
+            `<tr><td>${escapeHtml(c.error_category || "--")}</td>` +
+            `<td>${escapeHtml(c.count)}</td>` +
+            `<td>${escapeHtml(c.avg_score)}</td></tr>`
+        )
+        .join("");
+    }
+
+    function renderRecords(records) {
+      const tbody = document.querySelector("#recordTable tbody");
+      if (!records || records.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="empty">暂无数据</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = records
+        .map(
+          (r) =>
+            `<tr><td>${escapeHtml(r.question_no)}</td>` +
+            `<td>${escapeHtml(r.score)}</td>` +
+            `<td>${methodLabel(r.method)}</td>` +
+            `<td>${r.routed ? "是" : "否"}</td>` +
+            `<td>${r.degraded ? "是" : "否"}</td>` +
+            `<td>${escapeHtml(r.error_category || "--")}</td>` +
+            `<td class="summary-text">${escapeHtml(truncate(r.work_text, 60))}</td></tr>`
+        )
+        .join("");
+    }
+
+    // 下载指定格式的统计报告（html/docx），参考 index.html downloadReport 的 blob 下载
+    function downloadStatsReport(format) {
+      if (!currentBatchId) {
+        showNotification("暂无批改数据", "error");
+        return;
+      }
+      fetch("/stats_report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ batch_id: currentBatchId, format: format }),
       })
         .then(async (response) => {
           if (!response.ok) {
@@ -1099,7 +1139,7 @@
           const url = URL.createObjectURL(blob);
           const link = document.createElement("a");
           link.href = url;
-          link.download = format === "html" ? "批改报告.html" : "批改报告.docx";
+          link.download = format === "html" ? "统计报告.html" : "统计报告.docx";
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
@@ -1112,26 +1152,12 @@
     }
 
     document
-      .getElementById("downloadHtmlButton")
-      .addEventListener("click", () => downloadReport("html"));
+      .getElementById("downloadHtmlBtn")
+      .addEventListener("click", () => downloadStatsReport("html"));
 
     document
-      .getElementById("downloadDocxButton")
-      .addEventListener("click", () => downloadReport("docx"));
-
-    document
-      .getElementById("undoButtonWork")
-      .addEventListener("click", () => {
-        document.getElementById("content_work").value = originalWorkText;
-        showNotification("已撤销修改，恢复学生作业原始文本", "success");
-      });
-
-    document
-      .getElementById("undoButtonAnswer")
-      .addEventListener("click", () => {
-        document.getElementById("content_answer").value = originalAnswerText;
-        showNotification("已撤销修改，恢复参考答案原始文本", "success");
-      });
+      .getElementById("downloadDocxBtn")
+      .addEventListener("click", () => downloadStatsReport("docx"));
   </script>
 </body>
 
