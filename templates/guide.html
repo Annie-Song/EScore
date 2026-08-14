@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>使用教程 - 智能作业批改系统</title>
+  <style>
+    :root {
+      --primary-color: #007aff;
+      --secondary-color: #005bb5;
+      --success-color: #34c759;
+      --warning-color: #ff3b30;
+      --light-bg: #f5f5f7;
+      --dark-text: #1c1c1e;
+      --light-text: #8e8e93;
+      --border-radius: 10px;
+      --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+      --body-bg: #f5f5f7;
+      --card-bg: #ffffff;
+      --border-color: #e5e5ea;
+      --input-border: #c7c7cc;
+      --file-input-bg: #f5f5f7;
+      --notification-bg: rgba(0, 0, 0, 0.8);
+      --notification-text: #ffffff;
+    }
+
+    [data-theme="dark"] {
+      --primary-color: #0a84ff;
+      --secondary-color: #007aff;
+      --success-color: #30d158;
+      --warning-color: #ff453a;
+      --light-bg: #1c1c1e;
+      --dark-text: #e5e5ea;
+      /* 调整为浅灰色，护眼 */
+      --light-text: #8e8e93;
+      --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      --body-bg: #121212;
+      /* 深灰色背景，护眼 */
+      --card-bg: #2c2c2e;
+      /* 稍浅灰色，柔和对比 */
+      --border-color: #3a3a3c;
+      --input-border: #3a3a3c;
+      --file-input-bg: #2c2c2e;
+      --notification-bg: rgba(255, 255, 255, 0.8);
+      --notification-text: #000000;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.6;
+      color: var(--dark-text);
+      background-color: var(--body-bg);
+      padding: 0;
+      margin: 0;
+      transition: all 0.3s ease;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 30px auto;
+      background: var(--card-bg);
+      padding: 40px;
+      border-radius: var(--border-radius);
+      box-shadow: var(--box-shadow);
+    }
+
+    .theme-toggle-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      background: var(--card-bg);
+      border-radius: 30px;
+      padding: 5px 15px;
+      box-shadow: var(--box-shadow);
+    }
+
+    .theme-label {
+      margin-right: 10px;
+      font-size: 14px;
+      color: var(--dark-text);
+    }
+
+    .theme-switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 24px;
+    }
+
+    .theme-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: var(--light-bg);
+      transition: 0.4s;
+      border-radius: 34px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: 0.4s;
+      border-radius: 50%;
+    }
+
+    input:checked+.slider {
+      background-color: var(--success-color);
+    }
+
+    input:checked+.slider:before {
+      transform: translateX(26px);
+    }
+
+    .slider-icons {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      justify-content: space-between;
+      padding: 3px 6px;
+      color: white;
+      font-size: 12px;
+    }
+
+    .page-header {
+      text-align: center;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .page-header h1 {
+      color: var(--primary-color);
+      font-size: 36px;
+      margin-bottom: 10px;
+    }
+
+    .page-header p {
+      color: var(--light-text);
+      font-size: 16px;
+    }
+
+    .batch-entry {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 8px 18px;
+      background-color: var(--primary-color);
+      color: white;
+      border-radius: var(--border-radius);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 14px;
+      transition: background 0.3s;
+    }
+
+    .batch-entry:hover {
+      background-color: var(--secondary-color);
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--border-radius);
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      border-left: 4px solid var(--primary-color);
+      transition: all 0.3s ease;
+    }
+
+    .card:hover {
+      transform: scale(1.02);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .card-title {
+      display: flex;
+      align-items: center;
+      margin-bottom: 15px;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--primary-color);
+    }
+
+    .card-title span {
+      background: var(--primary-color);
+      color: white;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 10px;
+      font-size: 14px;
+    }
+
+    .steps {
+      padding-left: 22px;
+      margin: 0;
+    }
+
+    .steps li {
+      margin-bottom: 10px;
+      line-height: 1.7;
+      color: var(--dark-text);
+    }
+
+    .steps li::marker {
+      color: var(--primary-color);
+      font-weight: 600;
+    }
+
+    .feature-item {
+      margin-bottom: 16px;
+    }
+
+    .feature-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .feature-label {
+      font-weight: 600;
+      color: var(--primary-color);
+      margin-bottom: 4px;
+    }
+
+    .feature-desc {
+      color: var(--dark-text);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .guide-footer {
+      text-align: center;
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .back-link {
+      display: inline-block;
+      color: var(--primary-color);
+      text-decoration: none;
+      font-size: 15px;
+    }
+
+    .back-link:hover {
+      text-decoration: underline;
+    }
+
+    .notification {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: auto;
+      max-width: 80%;
+      padding: 10px 20px;
+      background: var(--notification-bg);
+      color: var(--notification-text);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.3s ease-out;
+    }
+
+    .notification.show {
+      display: flex;
+    }
+
+    .notification.success {
+      border-left: 4px solid var(--success-color);
+    }
+
+    .notification.error {
+      border-left: 4px solid var(--warning-color);
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 20px;
+        margin: 15px;
+      }
+
+      .theme-toggle-container {
+        top: 10px;
+        right: 10px;
+        padding: 3px 10px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- 主题切换 -->
+  <div class="theme-toggle-container">
+    <span class="theme-label">主题:</span>
+    <label class="theme-switch">
+      <input type="checkbox" id="themeToggle" />
+      <span class="slider">
+        <span class="slider-icons">
+          <span>☀️</span>
+          <span>🌙</span>
+        </span>
+      </span>
+    </label>
+  </div>
+  <div class="container">
+    <div class="page-header">
+      <h1>使用教程</h1>
+      <p>两种批改流程，帮助您快速上手智能作业批改</p>
+      <a href="/" class="batch-entry">前往单图批改</a>
+      <a href="/batch" class="batch-entry" style="margin-left: 10px">前往批量批改</a>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span>1</span>方式一：单图快速批改</div>
+      <ol class="steps">
+        <li>进入首页，在“选择识别参数”卡片中选择识别语言（中文或英文）。</li>
+        <li>上传学生作业图片与参考答案图片，支持 JPG / PNG 格式，可点击或拖放到上传区域。</li>
+        <li>点击“开始图片文本识别”，等待系统完成两幅图片的文字识别。</li>
+        <li>检查识别出的作业内容与参考答案文本，如需修正可直接在文本框中编辑；点击“撤销修改”可一键恢复识别原文。</li>
+        <li>选择评分质量（快速版或高质版），并按需勾选“强制 DeepSeek 精排”。</li>
+        <li>点击“开始智能文本匹配比对”，等待评分完成。</li>
+        <li>查看页面顶部显示的作业评分结果。</li>
+        <li>点击“下载 HTML 报告”或“下载 Word 报告”保存批改报告。HTML 可直接在浏览器打开打印，Word 可二次编辑。</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span>2</span>方式二：批量批改</div>
+      <ol class="steps">
+        <li>进入批量批改页，上传一张参考答案图片，以及多份学生作业图片（可按住 Ctrl 或 Shift 多选）。</li>
+        <li>在“识别参数”卡片中设置识别语言与评分质量。</li>
+        <li>可选勾选“智能分区（一图多题切分）”，系统会将一图多题的作业自动切分为多个题目分别批改。</li>
+        <li>可选勾选“AI 错因归类（进阶）”，系统会为每道错题生成错因分类，便于统计错因分布。</li>
+        <li>点击“开始批量批改”，系统开始逐份识别与评分。</li>
+        <li>等待进度条走完，页面会实时显示当前已处理份数。</li>
+        <li>查看批改结果：统计概览（总份数、题目数、平均分、最高分、最低分）、每题统计（题号、人数、平均、最高、最低、及格率、未作答）、错因分布、批改明细。</li>
+        <li>点击“下载统计报告（HTML）”或“下载统计报告（Word）”保存整体统计报告。</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span>3</span>功能说明</div>
+      <div class="feature-item">
+        <div class="feature-label">支持图片格式</div>
+        <p class="feature-desc">支持 JPG / PNG 两种常见图片格式，单图批改与批量批改均适用。</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-label">识别语言</div>
+        <p class="feature-desc">支持中文与英文两种识别语言，请在开始识别前按作业实际语言选择，以获得更准确的识别结果。</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-label">评分质量</div>
+        <p class="feature-desc">快速版默认仅在低分作答时转 DeepSeek 精排，速度更快、调用更省；高质版会让更多作答进入精排，评分更准确但耗时更慢、开销更高。教师可按批改要求灵活选择。</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-label">智能分区</div>
+        <p class="feature-desc">针对一页包含多道题的作业图片，勾选后系统会先自动切分题目区域，再逐题识别与评分，适合试卷类排版。</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-label">AI 错因归类</div>
+        <p class="feature-desc">开启后系统会对错题作答进行原因归类（如概念不清、计算失误、审题偏差等），并在统计报告中生成错因分布，帮助教师快速定位班级薄弱点。</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-label">在线 / 离线评分降级</div>
+        <p class="feature-desc">DeepSeek 在线服务不可用时（如网络中断或服务限流），系统会自动降级为离线向量相似度评分，保证批改流程不被中断；此时评分结果会标注“降级”提示。</p>
+      </div>
+    </div>
+
+    <div class="guide-footer">
+      <a href="/" class="back-link">← 返回首页</a>
+    </div>
+  </div>
+  <div class="notification" id="notification">
+    <div id="notificationMessage"></div>
+  </div>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const themeToggle = document.getElementById("themeToggle");
+      const savedTheme = localStorage.getItem("theme");
+      const prefersDarkScheme = window.matchMedia(
+        "(prefers-color-scheme: dark)"
+      ).matches;
+      if (
+        savedTheme === "dark" ||
+        (savedTheme === null && prefersDarkScheme)
+      ) {
+        document.documentElement.setAttribute("data-theme", "dark");
+        themeToggle.checked = true;
+      } else {
+        document.documentElement.setAttribute("data-theme", "light");
+        themeToggle.checked = false;
+      }
+      themeToggle.addEventListener("change", function () {
+        if (this.checked) {
+          document.documentElement.setAttribute("data-theme", "dark");
+          localStorage.setItem("theme", "dark");
+          showNotification("已切换到深色主题", "success");
+        } else {
+          document.documentElement.setAttribute("data-theme", "light");
+          localStorage.setItem("theme", "light");
+          showNotification("已切换到浅色主题", "success");
+        }
+      });
+      window
+        .matchMedia("(prefers-color-scheme: dark)")
+        .addEventListener("change", (e) => {
+          if (!localStorage.getItem("theme")) {
+            const newTheme = e.matches ? "dark" : "light";
+            document.documentElement.setAttribute("data-theme", newTheme);
+            themeToggle.checked = e.matches;
+            showNotification(
+              `已根据系统设置切换到${e.matches ? "深色" : "浅色"}主题`,
+              "success"
+            );
+          }
+        });
+    });
+
+    function showNotification(message, type = "success") {
+      const notification = document.getElementById("notification");
+      const notificationMessage = document.getElementById(
+        "notificationMessage"
+      );
+      notification.className = "notification";
+      notification.classList.add(type);
+      notificationMessage.textContent = message;
+      notification.style.display = "flex";
+      setTimeout(() => {
+        notification.style.display = "none";
+      }, 3000);
+    }
+  </script>
+</body>
+
+</html>
