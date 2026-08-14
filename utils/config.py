@@ -35,6 +35,10 @@ DB_PATH = './output/grades.db'
 # 参考答案嵌入缓存上限：满则整体清空重算，保证内存有界（缓存只是优化）
 REF_CACHE_MAX = 256
 
+# 向量嵌入微服务监听地址：A8 拆分为独立 FastAPI 进程，客户端按此地址对接
+EMBEDDING_SERVICE_HOST = "127.0.0.1"
+EMBEDDING_SERVICE_PORT = 8765
+
 # 错因 AI 归类：默认关闭（基础用户规则分档），落入模糊带才调 DeepSeek 细分类
 ERROR_AI_MODE = False
 ERROR_AI_BAND_LOW = 30.0  # 模糊带下界：低于此分一律规则分档
