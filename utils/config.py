@@ -1,4 +1,5 @@
 """集中管理项目常量。"""
+import os
 
 # 文件上传目录
 UPLOAD_FOLDER = './uploads'
@@ -34,6 +35,16 @@ DB_PATH = './output/grades.db'
 
 # 参考答案嵌入缓存上限：满则整体清空重算，保证内存有界（缓存只是优化）
 REF_CACHE_MAX = 256
+
+# 向量嵌入微服务监听地址：A8 拆分为独立 FastAPI 进程，客户端按此地址对接
+EMBEDDING_SERVICE_HOST = "127.0.0.1"
+EMBEDDING_SERVICE_PORT = 8765
+
+# 向量嵌入微服务地址：默认本地监听地址，可用环境变量覆盖（独立进程部署时指向其他主机）
+EMBEDDING_SERVICE_URL = os.environ.get(
+    "EMBEDDING_SERVICE_URL",
+    f"http://{EMBEDDING_SERVICE_HOST}:{EMBEDDING_SERVICE_PORT}",
+)
 
 # 错因 AI 归类：默认关闭（基础用户规则分档），落入模糊带才调 DeepSeek 细分类
 ERROR_AI_MODE = False

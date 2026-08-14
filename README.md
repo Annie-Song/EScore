@@ -35,14 +35,21 @@ cp .env.example .env   # Windows: copy .env.example .env
 | --- | --- |
 | DEEPSEEK_API_KEY | DeepSeek API 密钥（在线评分必需） |
 | FLASK_DEBUG | 调试模式开关，生产环境保持 0 |
+| EMBEDDING_SERVICE_URL | 向量嵌入微服务地址，默认 http://127.0.0.1:8765 |
 
 ## 运行
 
+2.5.0 起向量嵌入已拆为独立 FastAPI 微服务，需要先启动嵌入服务，再启动主应用（同一 conda 环境两个进程）：
+
 ```
+# 终端 1：启动向量嵌入微服务（默认监听 127.0.0.1:8765）
+python -m services.embedding_server
+
+# 终端 2：启动主应用
 python run.py
 ```
 
-或双击 `run.bat`。启动后浏览器访问 http://127.0.0.1:5000/ 。
+或双击 `run.bat`。启动后浏览器访问 http://127.0.0.1:5000/ 。嵌入服务未启动时，离线评分会明确报错并提示启动命令（fail-fast，不静默降级）；`EMBEDDING_SERVICE_URL` 环境变量可指向其他主机上的嵌入服务。
 
 ## 测试
 
@@ -55,6 +62,8 @@ pytest
 ## 架构
 
 系统采用级联两阶段评分：先由离线向量嵌入（sentence-transformers 多语言 MiniLM）粗筛，离线分低于阈值（默认 60 分）或落入边界带时自动路由 DeepSeek 精排。前端勾选「强制 DeepSeek 精排」则跳过粗筛、每次都用 DeepSeek。
+
+2.5.0 起向量嵌入拆为独立 FastAPI 微服务（services/embedding_server.py，进程隔离，避免在单体里堆模型），主应用经 HTTP 客户端（services/embedding.py）调用，接口契约不变、业务调用方零改动。嵌入模型与参考答案缓存只在服务进程常驻，主应用进程内存与启动速度得到释放。
 
 | 模式 | 评分引擎 | 适用场景 |
 | --- | --- | --- |

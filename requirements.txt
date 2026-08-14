@@ -19,5 +19,11 @@ huggingface-hub==0.36.2
 # 报告下载：生成 Word 版批改报告（.docx）
 python-docx==1.2.0
 
+# A8 向量嵌入微服务：独立 FastAPI 进程
+fastapi==0.128.8
+uvicorn==0.39.0
+# 嵌入服务 HTTP 客户端直接依赖
+httpx==0.28.1
+
 # 测试依赖
 pytest==8.4.2
