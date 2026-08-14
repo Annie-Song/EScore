@@ -185,6 +185,97 @@
       background-color: var(--secondary-color);
     }
 
+    /* 首次访问引导横幅 */
+    .guide-banner {
+      display: none;
+      max-width: 1000px;
+      margin: 30px auto 0;
+      background: var(--card-bg);
+      border-left: 4px solid var(--primary-color);
+      border-radius: var(--border-radius);
+      padding: 18px 20px;
+      box-shadow: var(--box-shadow);
+    }
+
+    .guide-banner-content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .guide-banner-text {
+      flex: 1;
+    }
+
+    .guide-banner-title {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--primary-color);
+      margin-bottom: 6px;
+    }
+
+    .guide-banner-desc {
+      font-size: 14px;
+      color: var(--light-text);
+      margin-bottom: 10px;
+    }
+
+    .guide-banner-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .guide-banner-link {
+      display: inline-block;
+      padding: 8px 16px;
+      border-radius: var(--border-radius);
+      background: var(--primary-color);
+      color: #fff;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: background 0.3s;
+    }
+
+    .guide-banner-link:hover {
+      background: var(--secondary-color);
+    }
+
+    .guide-banner-link.guide-banner-primary {
+      background: var(--light-bg);
+      color: var(--primary-color);
+    }
+
+    .guide-banner-link.guide-banner-primary:hover {
+      background: var(--primary-color);
+      color: #fff;
+    }
+
+    .guide-banner-close {
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border: none;
+      border-radius: 50%;
+      background: var(--light-bg);
+      color: var(--light-text);
+      font-size: 14px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    .guide-banner-close:hover {
+      background: var(--primary-color);
+      color: #fff;
+    }
+
     .card {
       background: var(--card-bg);
       border-radius: var(--border-radius);
@@ -585,6 +676,23 @@
       </span>
     </label>
   </div>
+  <!-- 首次访问引导横幅 -->
+  <div class="guide-banner" id="guideBanner" style="display: none">
+    <div class="guide-banner-content">
+      <div class="guide-banner-text">
+        <div class="guide-banner-title">欢迎使用智能作业批改系统！</div>
+        <div class="guide-banner-desc">
+          上传作业与答案图片即可自动识别并智能评分，可先查看使用教程，或直接开始批改。
+        </div>
+        <div class="guide-banner-actions">
+          <a href="/guide" class="guide-banner-link">查看使用教程</a>
+          <a href="/batch" class="guide-banner-link guide-banner-primary">去批量批改</a>
+        </div>
+      </div>
+      <button type="button" class="guide-banner-close" id="guideBannerClose"
+        aria-label="关闭引导" title="关闭">✕</button>
+    </div>
+  </div>
   <div class="container">
     <div class="page-header">
       <h1>智能作业批改系统</h1>
@@ -797,6 +905,22 @@
           }
         });
     });
+
+    // 首次访问引导横幅：localStorage 记忆已关闭状态，可手动关闭
+    (function initGuideBanner() {
+      const banner = document.getElementById("guideBanner");
+      const closeBtn = document.getElementById("guideBannerClose");
+      if (!banner || !closeBtn) {
+        return;
+      }
+      if (!localStorage.getItem("guide_banner_dismissed")) {
+        banner.style.display = "block";
+      }
+      closeBtn.addEventListener("click", function () {
+        banner.style.display = "none";
+        localStorage.setItem("guide_banner_dismissed", "1");
+      });
+    })();
 
     function showNotification(message, type = "success") {
       const notification = document.getElementById("notification");
