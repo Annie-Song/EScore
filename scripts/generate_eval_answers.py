@@ -8,6 +8,7 @@
     python scripts/generate_eval_answers.py                # 全部题目三档生成（增量续跑）
     python scripts/generate_eval_answers.py --limit 5      # 仅前 5 题（试跑/控制成本）
     python scripts/generate_eval_answers.py --tiers good medium  # 只生成指定档位
+    python scripts/generate_eval_answers.py --tiers good medium --force  # 忽略缓存强制重生成
 """
 from __future__ import annotations
 
@@ -23,16 +24,19 @@ from services.deepseek import get_client
 from services.eval_set import load_gaokao_questions
 from utils import config
 
-# 每档作答的生成提示：只输出作答文本，不做质量标注（避免自评污染评测）
+# 每档作答的生成提示：只输出作答文本，不做质量标注（避免自评污染评测）。
+# 词汇重叠与质量档位同向单调：good 可参照参考答案措辞组织（重叠高），
+# medium 禁止照抄原文用自己的话概括（重叠低），bad 保持低质量定位。
 _TIER_PROMPTS = {
     "good": (
         "你是作答这道题的学生。请写一份优秀的作答：内容完整、要点覆盖全面、"
-        "表达通顺，与参考答案语义一致但用自己的话表达。只输出作答文本，"
+        "表达通顺准确，可以参照参考答案的措辞和要点来组织作答。只输出作答文本，"
         "不要任何解释或质量标注。"
     ),
     "medium": (
         "你是作答这道题的学生。请写一份中等质量的作答：只覆盖部分要点，"
-        "表达一般，有遗漏或不完全准确。只输出作答文本，不要任何解释或质量标注。"
+        "表达一般，有遗漏或不完全准确。不要直接照抄参考答案的原文措辞，"
+        "用自己的话概括。只输出作答文本，不要任何解释或质量标注。"
     ),
     "bad": (
         "你是作答这道题的学生。请写一份低质量的作答：答非所问、要点缺失或"
@@ -79,6 +83,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--limit", type=int, default=0, help="仅处理前 N 题（0=全部）")
     parser.add_argument("--tiers", nargs="+", default=list(_TIERS), help="要生成的档位")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="强制重新生成 --tiers 指定档位，忽略缓存中已存在的档位",
+    )
     parser.add_argument("--out", default=config.EVAL_ANSWERS_PATH, help="输出 JSON 路径")
     args = parser.parse_args(argv)
 
@@ -93,7 +102,11 @@ def main(argv: list[str] | None = None) -> int:
     for q in questions:
         key = (q.subject, q.index)
         existing = cache.setdefault(key, {})
-        needed = [t for t in args.tiers if t not in existing]
+        needed = (
+            list(args.tiers)
+            if args.force
+            else [t for t in args.tiers if t not in existing]
+        )
         if not needed:
             skipped += 1
             continue
