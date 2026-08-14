@@ -705,6 +705,11 @@
               <option value="中文">中文</option>
               <option value="英文">英文</option>
             </select>
+            <label for="qualityMode">评分质量：</label>
+            <select id="qualityMode">
+              <option value="fast">快速版（默认，更快更省）</option>
+              <option value="quality">高质版（更准，差档作答更多精排）</option>
+            </select>
           </div>
         </div>
         <div class="custom-checkbox-container">
@@ -959,6 +964,7 @@
         formData.append("language", document.getElementById("language").value);
         formData.append("enable_segment", document.getElementById("enableSegment").checked);
         formData.append("error_ai_mode", document.getElementById("errorAiMode").checked);
+        formData.append("quality", document.getElementById("qualityMode").value);
         try {
           const response = await fetch("/batch_grade", {
             method: "POST",
