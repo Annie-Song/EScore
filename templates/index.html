@@ -977,7 +977,7 @@
           document.getElementById("language").value
         );
         try {
-          const response = await fetch("http://127.0.0.1:5000/ocr", {
+          const response = await fetch("/ocr", {
             method: "POST",
             body: formData,
           });
@@ -1029,7 +1029,7 @@
         };
         try {
           const response = await fetch(
-            "http://127.0.0.1:5000/compare_texts",
+            "/compare_texts",
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -1090,7 +1090,7 @@
         routed: lastResult.routed,
         format: format,
       };
-      fetch("http://127.0.0.1:5000/download_report", {
+      fetch("/download_report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
