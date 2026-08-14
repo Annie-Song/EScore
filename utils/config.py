@@ -23,3 +23,22 @@ REPORT_FILENAME = '批改报告'        # 报告下载文件名前缀（前端�
 ENHANCE_WEIGHTS_PATH = './ESRGAN/models/RealESRGAN_x4plus.pth'  # 超分模型预训练权重
 ENHANCE_CONFIDENCE_THRESHOLD = 0.6  # 平均置信度低于此值触发增强
 ENHANCE_OUTPUT_FOLDER = './output/enhance'  # 增强输出图临时落盘目录
+
+# 作业智能分区：水平投影切分一图多题作业图片为独立区域
+SEGMENT_BLANK_RATIO = 0.005  # 空白行判定阈值：行前景像素占比低于 0.5% 视为空白行
+SEGMENT_MIN_GAP = 20         # 相邻非空白带最小合并间隙：小于 20 行的间隙并入相邻带
+SEGMENT_MIN_HEIGHT = 15      # 噪声带最小高度：低于 15px 的带丢弃
+
+# 批改记录 SQLite 数据库文件，WAL 模式
+DB_PATH = './output/grades.db'
+
+# 参考答案嵌入缓存上限：满则整体清空重算，保证内存有界（缓存只是优化）
+REF_CACHE_MAX = 256
+
+# 错因 AI 归类：默认关闭（基础用户规则分档），落入模糊带才调 DeepSeek 细分类
+ERROR_AI_MODE = False
+ERROR_AI_BAND_LOW = 30.0  # 模糊带下界：低于此分一律规则分档
+ERROR_AI_BAND_HIGH = 85.0  # 模糊带上界：高于此分一律规则分档
+
+# 批量批改分区裁剪临时目录（文件名用 uuid，防并发冲突）
+SEGMENT_OUTPUT_FOLDER = './output/segments'

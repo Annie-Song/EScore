@@ -24,4 +24,10 @@ def create_app() -> Flask:
     from app.routes import bp
     app.register_blueprint(bp)
 
+    from app.batch_routes import bp as batch_bp
+    app.register_blueprint(batch_bp)
+
+    from app.stats_routes import bp as stats_bp
+    app.register_blueprint(stats_bp)
+
     return app
