@@ -36,8 +36,11 @@ def _get_model() -> object:
             _load_warned = True
         return None
     try:
-        net = RRDBNet(3, 3, 64, 23, gc=32)
-        state_dict = torch.load(config.ENHANCE_WEIGHTS_PATH, map_location="cpu")
+        net = RRDBNet(3, 3, scale=4, num_feat=64, num_block=23, num_grow_ch=32)
+        state_dict = torch.load(config.ENHANCE_WEIGHTS_PATH, map_location="cpu", weights_only=True)
+        # Real-ESRGAN 官方权重最外层为 params_ema，需解包后再载入
+        if "params_ema" in state_dict:
+            state_dict = state_dict["params_ema"]
         net.load_state_dict(state_dict, strict=True)
         net.eval()
         _model = net

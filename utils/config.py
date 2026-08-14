@@ -20,6 +20,6 @@ REPORT_FOLDER = './output/reports'  # Word 报告临时落盘目录
 REPORT_FILENAME = '批改报告'        # 报告下载文件名前缀（前端展示的中文名）
 
 # ESRGAN 图像增强（备选）：低置信度 OCR 自动增强重识别
-ENHANCE_WEIGHTS_PATH = './ESRGAN/models/RRDB_ESRGAN_x4.pth'  # 超分模型预训练权重
+ENHANCE_WEIGHTS_PATH = './ESRGAN/models/RealESRGAN_x4plus.pth'  # 超分模型预训练权重
 ENHANCE_CONFIDENCE_THRESHOLD = 0.6  # 平均置信度低于此值触发增强
 ENHANCE_OUTPUT_FOLDER = './output/enhance'  # 增强输出图临时落盘目录

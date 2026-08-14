@@ -63,6 +63,9 @@ uploads/
 output/reports/
 output/enhance/
 
+# 超分模型权重（大文件，官方云盘/Releases 下载，不入库）
+ESRGAN/models/*.pth
+
 # 忽略个人文档与工作记忆
 DOCX/
 memory/
