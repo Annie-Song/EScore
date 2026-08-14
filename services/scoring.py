@@ -1,10 +1,20 @@
 """评分模块：在线 DeepSeek 精排 + 离线向量嵌入语义相似度兜底。"""
+from __future__ import annotations
+
 import logging
+from dataclasses import dataclass
 from typing import Optional
 
 from services.deepseek import get_points
 from services.embedding import semantic_similarity
-from utils.config import BAND_HIGH, BAND_LOW, LOW_THRESHOLD, ROUTING_MODE
+from utils.config import (
+    BAND_HIGH,
+    BAND_LOW,
+    DEFAULT_ROUTING_PRESET,
+    LOW_THRESHOLD,
+    ROUTING_MODE,
+    ROUTING_PRESETS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -25,25 +35,53 @@ def online_score(reference: str, answer: str) -> Optional[float]:
     return round(raw * 100, 1)
 
 
-def should_route(offline_score: float) -> bool:
+@dataclass(frozen=True)
+class RoutingConfig:
+    """一次路由决策的完整参数：策略族 + 阈值（frozen 不可变）。"""
+    mode: str = ROUTING_MODE
+    low: float = LOW_THRESHOLD
+    band_low: float = BAND_LOW
+    band_high: float = BAND_HIGH
+
+
+def resolve_preset(name: str) -> RoutingConfig:
+    """按预设名解析路由配置；未知名抛 ValueError（fail-fast，不塞默认值）。"""
+    try:
+        return RoutingConfig(**ROUTING_PRESETS[name])
+    except KeyError:
+        raise ValueError(f"未知路由预设: {name!r}，可选 {sorted(ROUTING_PRESETS)}") from None
+
+
+def should_route(offline_score: float, routing: RoutingConfig | None = None) -> bool:
     """判断离线粗筛分是否应路由到 DeepSeek 精排。
 
-    依据 ROUTING_MODE 决定是否触发级联精排：threshold 模式下低于阈值触发，
-    band 模式下落在中段边界带触发，其余（含 off）一律不触发。
+    routing 缺省时读取模块级常量（ROUTING_MODE/LOW_THRESHOLD/BAND_*），与旧行为一致，
+    测试可 patch services.scoring.ROUTING_MODE 生效；显式传入 routing 则按给定配置决策
+    （双档预设与扫描工具复用）。
     """
-    if ROUTING_MODE == "threshold":
-        return offline_score < LOW_THRESHOLD
-    if ROUTING_MODE == "band":
-        return BAND_LOW <= offline_score <= BAND_HIGH
+    if routing is None:
+        # 必须在调用时读模块全局，不能用 RoutingConfig() 类默认值（那会在 import 时绑定常量，
+        # patch 模块级常量后不生效）
+        routing = RoutingConfig(mode=ROUTING_MODE, low=LOW_THRESHOLD,
+                                band_low=BAND_LOW, band_high=BAND_HIGH)
+    if routing.mode == "threshold":
+        return offline_score < routing.low
+    if routing.mode == "band":
+        return routing.band_low <= offline_score <= routing.band_high
     return False
 
 
-def grade_answer(reference: str, answer: str, force_online: bool) -> dict:
+def grade_answer(reference: str, answer: str, force_online: bool,
+                 quality_mode: str = DEFAULT_ROUTING_PRESET) -> dict:
     """按在线/离线级联模式评分，返回结构化结果。
+
+    quality_mode 选择路由预设（fast/quality），决定低分路由阈值；
+    force_online 时预设仅用于校验不参与路由决策。
 
     返回字典包含 score（0-100 分数）、method（online/offline）、
     degraded（在线失败是否降级到离线）、routed（是否由离线粗筛自动路由精排）。
     """
+    routing = resolve_preset(quality_mode)
     if force_online:
         score = online_score(reference, answer)
         if score is not None:
@@ -53,7 +91,7 @@ def grade_answer(reference: str, answer: str, force_online: bool) -> dict:
         return {"score": score, "method": "offline", "degraded": True, "routed": False}
 
     offline = offline_score(reference, answer)
-    if not should_route(offline):
+    if not should_route(offline, routing):
         return {"score": offline, "method": "offline", "degraded": False, "routed": False}
 
     score = online_score(reference, answer)

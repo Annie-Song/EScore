@@ -1,6 +1,8 @@
 """批量评分模块单元测试：批量离线评分与级联精排。"""
 from unittest.mock import patch
 
+import pytest
+
 from services.batch_scoring import batch_offline_scores, grade_batch
 
 
@@ -85,3 +87,27 @@ def test_grade_batch_results_length_matches_answers():
          patch("services.batch_scoring.online_score", return_value=99.0):
         results = grade_batch("参考", ["a", "b", "c"], force_online=False)
     assert len(results) == 3
+
+
+def test_grade_batch_quality_mode_fast_keeps_75_offline():
+    """批量 offline=75：fast 预设（low=60）不路由，真实 should_route 逻辑返回离线结果。"""
+    with patch("services.batch_scoring.batch_offline_scores", return_value=[75.0]), \
+         patch("services.batch_scoring.online_score", return_value=90.0):
+        results = grade_batch("参考", ["a"], force_online=False, quality_mode="fast")
+    assert results == [{"score": 75.0, "method": "offline", "degraded": False, "routed": False}]
+
+
+def test_grade_batch_quality_mode_quality_routes_75_to_online():
+    """批量 offline=75：quality 预设（low=80）路由到在线精排，返回在线结果。"""
+    with patch("services.batch_scoring.batch_offline_scores", return_value=[75.0]), \
+         patch("services.batch_scoring.online_score", return_value=90.0):
+        results = grade_batch("参考", ["a"], force_online=False, quality_mode="quality")
+    assert results == [{"score": 90.0, "method": "online", "degraded": False, "routed": True}]
+
+
+def test_grade_batch_unknown_quality_mode_raises_even_force_online():
+    """未知 quality_mode 抛 ValueError，force_online=True 也抛（fail-fast 开头 resolve_preset）。"""
+    with patch("services.batch_scoring.online_score", return_value=90.0), \
+         patch("services.batch_scoring.offline_score", return_value=50.0):
+        with pytest.raises(ValueError, match="未知路由预设"):
+            grade_batch("参考", ["a"], force_online=True, quality_mode="ultra")

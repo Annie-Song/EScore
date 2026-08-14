@@ -16,6 +16,15 @@ LOW_THRESHOLD = 60.0        # 低分路由阈值：离线分低于此值转 Deep
 BAND_LOW = 40.0             # 中段边界带下界
 BAND_HIGH = 80.0            # 中段边界带上界
 
+# 级联精排路由双档预设：使用者在评分时自选（fast=低成本快速版/quality=高质版）
+# fast 与既有默认常量一致（LOW_THRESHOLD=60，行为不变）；quality 提高 low 阈值，
+# 差档作答更多被路由到 DeepSeek 精排（代价是优档浪费与总路由成本上升）
+ROUTING_PRESETS = {
+    "fast": {"mode": ROUTING_MODE, "low": LOW_THRESHOLD},
+    "quality": {"mode": "threshold", "low": 80.0},
+}
+DEFAULT_ROUTING_PRESET = "fast"
+
 # 报告下载配置
 REPORT_FOLDER = './output/reports'  # Word 报告临时落盘目录
 REPORT_FILENAME = '批改报告'        # 报告下载文件名前缀（前端展示的中文名）

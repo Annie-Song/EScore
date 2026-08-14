@@ -6,7 +6,8 @@
 import logging
 
 from services.embedding import batch_similarities
-from services.scoring import offline_score, online_score, should_route
+from services.scoring import offline_score, online_score, resolve_preset, should_route
+from utils.config import DEFAULT_ROUTING_PRESET
 
 logger = logging.getLogger(__name__)
 
@@ -23,13 +24,17 @@ def batch_offline_scores(reference: str, answers: list[str]) -> list[float]:
     return [round(max(0.0, min(1.0, sim)) * 100, 1) for sim in similarities]
 
 
-def grade_batch(reference: str, answers: list[str], force_online: bool) -> list[dict]:
+def grade_batch(reference: str, answers: list[str], force_online: bool,
+                quality_mode: str = DEFAULT_ROUTING_PRESET) -> list[dict]:
     """批量级联评分，返回与 answers 一一对应的结果字典列表。
 
+    quality_mode 选择路由预设（fast/quality），决定低分路由阈值；
+    force_online 时预设仅用于校验不参与路由决策。
     语义与 grade_answer 一致：force_online 时逐条走在线评分，失败降级离线
     （degraded=True）；否则离线批量粗筛，should_route 为真的条目走 DeepSeek
     精排（成功 routed=True，失败降级离线并标记 degraded+routed）。
     """
+    routing = resolve_preset(quality_mode)
     if force_online:
         results: list[dict] = []
         for answer in answers:
@@ -49,7 +54,7 @@ def grade_batch(reference: str, answers: list[str], force_online: bool) -> list[
     off_scores = batch_offline_scores(reference, answers)
     results = []
     for answer, offline in zip(answers, off_scores):
-        if not should_route(offline):
+        if not should_route(offline, routing):
             results.append(
                 {"score": offline, "method": "offline", "degraded": False, "routed": False}
             )
