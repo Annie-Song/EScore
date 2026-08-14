@@ -105,7 +105,7 @@ def test_batch_grade_success_returns_202_and_creates_task(client):
     assert task["status"] == "running"
     assert task["total_items"] == 2
     mock_run.assert_called_once_with(
-        body["task_id"], "/tmp/ref.jpg", ["/tmp/w1.png", "/tmp/w2.png"], "en", False, False
+        body["task_id"], "/tmp/ref.jpg", ["/tmp/w1.png", "/tmp/w2.png"], "en", False, False, "fast"
     )
 
 

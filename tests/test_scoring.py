@@ -1,6 +1,8 @@
 """评分模块单元测试。"""
 from unittest.mock import patch
 
+import pytest
+
 from services.scoring import offline_score, online_score, grade_answer
 
 
@@ -66,3 +68,38 @@ def test_grade_answer_auto_route_failure_falls_back_to_offline():
          patch("services.scoring.get_points", return_value=None):
         result = grade_answer("参考", "答案", False)
         assert result == {"score": 40.0, "method": "offline", "degraded": True, "routed": True}
+
+
+def test_grade_answer_quality_mode_fast_keeps_75_offline():
+    """offline=75：fast 预设（low=60）不路由，走真实 should_route 逻辑返回离线结果。"""
+    with patch("services.scoring.offline_score", return_value=75.0), \
+         patch("services.scoring.get_points", return_value=0.9):
+        result = grade_answer("参考", "答案", False, quality_mode="fast")
+    assert result == {"score": 75.0, "method": "offline", "degraded": False, "routed": False}
+
+
+def test_grade_answer_quality_mode_quality_routes_75_to_online():
+    """offline=75：quality 预设（low=80）路由到在线精排，返回在线结果。"""
+    with patch("services.scoring.offline_score", return_value=75.0), \
+         patch("services.scoring.get_points", return_value=0.9):
+        result = grade_answer("参考", "答案", False, quality_mode="quality")
+    assert result == {"score": 90.0, "method": "online", "degraded": False, "routed": True}
+
+
+def test_grade_answer_unknown_quality_mode_raises_even_force_online():
+    """未知 quality_mode 抛 ValueError，force_online=True 也抛（fail-fast 开头 resolve_preset）。"""
+    with patch("services.scoring.get_points", return_value=1.0), \
+         patch("services.scoring.offline_score", return_value=50.0):
+        with pytest.raises(ValueError, match="未知路由预设"):
+            grade_answer("参考", "答案", True, quality_mode="ultra")
+
+
+def test_grade_answer_default_quality_mode_equals_fast():
+    """缺省 quality_mode='fast' 与显式 fast 行为一致（回归保障）。"""
+    with patch("services.scoring.should_route", return_value=False), \
+         patch("services.scoring.semantic_similarity", return_value=0.5):
+        result_default = grade_answer("参考", "答案", False)
+    with patch("services.scoring.should_route", return_value=False), \
+         patch("services.scoring.semantic_similarity", return_value=0.5):
+        result_fast = grade_answer("参考", "答案", False, quality_mode="fast")
+    assert result_default == result_fast
