@@ -1,12 +1,16 @@
 """评分评测离线 benchmark（A9）：量化路由策略的离线判别力与成本。
 
 加载评测集（GAOKAO-Bench 题目 + DeepSeek 三档生成作答），对每对(标准答案, 作答)算
-离线 MiniLM 语义分（0-100，复用 services.scoring.offline_score），对照金标档位量化：
+离线 MiniLM 语义分（0-100，复用 services.scoring.offline_score），并叠加三个纯文本
+指标（services.eval_metrics，无第三方依赖、字符级），对照金标档位量化：
 1. 档位判别力：各档位分数分布、优差类间分离度、档位等级与分数的 Spearman 相关、
    优/差二分类 AUC（判别低质量作答的能力）。
-2. 路由策略模拟：复用 services.scoring.should_route，按 ROUTING_MODE 统计各档位
+2. 多指标判别：三个纯文本指标按档位均值（弱化单一词汇重叠信号，中英文均可处理）。
+3. 综合判别：MiniLM 分 + 三个纯文本指标等权合成 composite（0-100），对比纯 MiniLM
+   的档位 Spearman 与优/差 AUC，量化多指标融合的增益。
+4. 路由策略模拟：复用 services.scoring.should_route，按 ROUTING_MODE 统计各档位
    路由率（成本）、差档漏判（未被路由的低质量）、优档浪费（被路由的高质量）。
-3. 档位真实性校验：优档分数低于阈值、差档高于阈值的样本标为可疑（独立 MiniLM 信号）。
+5. 档位真实性校验：优档分数低于阈值、差档高于阈值的样本标为可疑（独立 MiniLM 信号）。
 
 需先运行 scripts/generate_eval_answers.py 生成作答，并启动嵌入服务
 python -m services.embedding_server。头条指标全程不涉及 DeepSeek 评判自身。
@@ -26,16 +30,18 @@ import numpy as np
 # 支持 `python scripts/xxx.py` 直接运行：把项目根加入 sys.path，使 services/utils 可导入
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from services.eval_metrics import length_ratio, lexical_dice, reference_ngram_coverage
 from services.eval_set import load_generated_cases
 from services.scoring import offline_score, should_route
 from utils import config
 
 _TIER_RANK = {"good": 3, "medium": 2, "bad": 1}
 _TIERS = ("good", "medium", "bad")
+_METRIC_NAMES = ("ngram_coverage", "lexical_dice", "length_ratio")
 
 
 def _collect(cases: list, limit: int) -> list[dict]:
-    """为每个(题目, 档位作答)计算离线分与路由决策，返回明细行。"""
+    """为每个(题目, 档位作答)计算离线分、三个纯文本指标与路由决策，返回明细行。"""
     rows = []
     for case in cases[:limit] if limit else cases:
         for tier in _TIERS:
@@ -50,6 +56,9 @@ def _collect(cases: list, limit: int) -> list[dict]:
                     "tier": tier,
                     "score": score,
                     "routed": should_route(score),
+                    "ngram_coverage": reference_ngram_coverage(case.reference, answer),
+                    "lexical_dice": lexical_dice(case.reference, answer),
+                    "length_ratio": length_ratio(case.reference, answer),
                 }
             )
     return rows
@@ -127,6 +136,41 @@ def _suspect_counts(rows: list[dict]) -> dict:
     }
 
 
+def _multi_metrics(rows: list[dict]) -> dict:
+    """三个纯文本指标按档位均值（good/medium/bad），衡量各档字面重叠度差异。"""
+    by_tier = {t: [r for r in rows if r["tier"] == t] for t in _TIERS}
+    return {
+        t: {m: float(np.mean([r[m] for r in v])) for m in _METRIC_NAMES}
+        for t, v in by_tier.items()
+        if v
+    }
+
+
+def _composite_score(row: dict) -> float:
+    """四指标等权合成综合分（0-100）：score 除以 100、ngram_coverage 与 lexical_dice
+    本为 0-1、length_ratio 截断后线性映射 /2 → 0-1，四者等权均值再乘 100。"""
+    return 100.0 * (
+        row["score"] / 100.0
+        + row["ngram_coverage"]
+        + row["lexical_dice"]
+        + row["length_ratio"] / 2.0
+    ) / 4.0
+
+
+def _composite_metrics(rows: list[dict]) -> dict:
+    """综合判别对比：合成 composite（0-100）的档位 Spearman 与优/差 AUC。"""
+    comp = [{**r, "composite": _composite_score(r)} for r in rows]
+    good = [r["composite"] for r in comp if r["tier"] == "good"]
+    bad = [r["composite"] for r in comp if r["tier"] == "bad"]
+    return {
+        "spearman": _spearman(
+            [_TIER_RANK[r["tier"]] for r in comp],
+            [r["composite"] for r in comp],
+        ),
+        "auc_good_vs_bad": _auc(good, bad),
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--limit", type=int, default=0, help="仅评测前 N 条（0=全部）")
@@ -141,6 +185,8 @@ def main(argv: list[str] | None = None) -> int:
     tier = _tier_metrics(rows)
     routing = _routing_metrics(rows)
     suspect = _suspect_counts(rows)
+    multi = _multi_metrics(rows)
+    composite = _composite_metrics(rows)
     n = len(rows)
     print(f"== 评分评测离线 benchmark（共 {n} 条作答，{len(cases)} 题 × 3 档）==")
     print(f"路由策略: {config.ROUTING_MODE} (low={config.LOW_THRESHOLD}, band={config.BAND_LOW}-{config.BAND_HIGH})")
@@ -152,6 +198,15 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  优差类间分离度 = {tier['separation']:.1f}")
     print(f"  档位-Spearman 相关 = {tier['spearman']:.3f}")
     print(f"  优/差二分类 AUC = {tier['auc_good_vs_bad']:.3f}")
+    print("\n[多指标判别]")
+    for t in _TIERS:
+        m = multi.get(t)
+        if m:
+            print(f"  {t:>6}: ngram_coverage={m['ngram_coverage']:.3f}  "
+                  f"lexical_dice={m['lexical_dice']:.3f}  length_ratio={m['length_ratio']:.3f}")
+    print("\n[综合判别（MiniLM vs 多指标融合）]")
+    print(f"  {'MiniLM':<9}: 档位-Spearman 相关 = {tier['spearman']:.3f}  优/差二分类 AUC = {tier['auc_good_vs_bad']:.3f}")
+    print(f"  {'composite':<9}: 档位-Spearman 相关 = {composite['spearman']:.3f}  优/差二分类 AUC = {composite['auc_good_vs_bad']:.3f}")
     print("\n[路由策略模拟]")
     for t in _TIERS:
         rr = routing["route_rate"].get(t)
