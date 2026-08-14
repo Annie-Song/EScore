@@ -28,3 +28,6 @@ ENHANCE_OUTPUT_FOLDER = './output/enhance'  # 增强输出图临时落盘目录
 SEGMENT_BLANK_RATIO = 0.005  # 空白行判定阈值：行前景像素占比低于 0.5% 视为空白行
 SEGMENT_MIN_GAP = 20         # 相邻非空白带最小合并间隙：小于 20 行的间隙并入相邻带
 SEGMENT_MIN_HEIGHT = 15      # 噪声带最小高度：低于 15px 的带丢弃
+
+# 批改记录 SQLite 数据库文件，WAL 模式
+DB_PATH = './output/grades.db'
