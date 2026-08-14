@@ -74,7 +74,11 @@ def _result(score: float, method: str = "offline", degraded: bool = False,
 
 
 def test_run_batch_job_segmented_writes_four_records(image_files, tmp_path, monkeypatch):
-    """enable_segment=True：2 份作业 × 各 2 区域 → 4 条记录落库、批次/任务成功。"""
+    """enable_segment=True：2 份作业 × 各 2 区域 → 4 条记录落库、批次/任务成功。
+
+    regions_with_shared_enhance 返回 None，使测试稳定走逐区原路径（若为真实现，
+    在真实环境会加载 PaddleOCR/ESRGAN 并因假图降级，耗时 3-5s 且依赖外部模型）。
+    """
     store = _FakeStore()
     task_id = task_store.create_task(2)
     monkeypatch.setattr(config_module, "SEGMENT_OUTPUT_FOLDER", str(tmp_path / "segments"))
@@ -84,6 +88,7 @@ def test_run_batch_job_segmented_writes_four_records(image_files, tmp_path, monk
          patch("services.batch.default_store", return_value=store), \
          patch("services.segment.segment_image", return_value=_SEGMENT_REGIONS), \
          patch("services.segment.crop_region") as mock_crop, \
+         patch("services.region_ocr.regions_with_shared_enhance", return_value=None), \
          patch("services.batch_scoring.grade_batch", side_effect=[
              [_result(80.0), _result(90.0, method="online", routed=True)],
              [_result(70.0), _result(85.0)],

@@ -91,17 +91,45 @@ def _retry_with_enhance(
     return lines
 
 
+def ocr_instance(lang: str = 'ch') -> object:
+    """获取按语言缓存的 PaddleOCR 单例实例（懒加载），供批量链路直接复用。"""
+    return _load_paddleocr(lang)
+
+
+def recognize_lines_of(path: str, ocr: object) -> Tuple[List[Tuple[str, float]], float]:
+    """识别单张图片并返回 (lines, avg_confidence)，不做增强决策。
+
+    batch 层用它判断整图或区域平均置信度是否低，决定是否触发增强。
+    """
+    lines = _recognize_lines(ocr, path)
+    return lines, _avg_confidence(lines)
+
+
+def enhance_retry(
+    ocr: object,
+    path: str,
+    lines: List[Tuple[str, float]],
+) -> List[Tuple[str, float]]:
+    """低置信度时对单张图片做 ESRGAN 增强重识别，返回最终采用的 lines。"""
+    return _retry_with_enhance(ocr, path, lines)
+
+
+def recognize_single(path: str, lang: str = 'ch') -> str:
+    """识别单张图片文字：低置信度时增强重识别，返回按行拼接的文本。
+
+    与 recognize_texts 单张图语义一致，供逐图循环与批量链路复用。
+    """
+    ocr = ocr_instance(lang)
+    lines, avg_conf = recognize_lines_of(path, ocr)
+    if avg_conf < config.ENHANCE_CONFIDENCE_THRESHOLD:
+        lines = enhance_retry(ocr, path, lines)
+    return '\n'.join(text for text, _ in lines)
+
+
 def recognize_texts(image_paths: List[str], lang: str = 'ch') -> List[str]:
-    """识别多张图片文字，共享一个 OCR 实例，返回按行拼接的文本列表。
+    """识别多张图片文字，逐图复用 recognize_single，返回按行拼接的文本列表。
 
     单张图片平均置信度低于 config.ENHANCE_CONFIDENCE_THRESHOLD 且 ESRGAN 增强
     可用时，增强该图后重识别；若增强后置信度更高则采用增强结果。
     """
-    ocr = _load_paddleocr(lang)
-    texts = []
-    for path in image_paths:
-        lines = _recognize_lines(ocr, path)
-        if _avg_confidence(lines) < config.ENHANCE_CONFIDENCE_THRESHOLD:
-            lines = _retry_with_enhance(ocr, path, lines)
-        texts.append('\n'.join(text for text, _ in lines))
-    return texts
+    return [recognize_single(path, lang) for path in image_paths]

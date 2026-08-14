@@ -106,14 +106,21 @@ def run_batch_job(
 def _regions_of(path: str, lang: str, enable_segment: bool) -> list[dict]:
     """把一份作业图切分为区域识别结果，每个元素含 question_no 与 work_text。
 
-    enable_segment 且分区超过 1 个区域时，逐区域裁剪后各自 OCR；否则整图 OCR，
-    题号记为 1。裁剪文件写入 config.SEGMENT_OUTPUT_FOLDER，文件名用 uuid 防并发冲突。
+    enable_segment 且分区超过 1 个区域时，先尝试整图增强去重识别（整图低置信度
+    时增强一次、各区域共享）；该路径不可用或降级时，逐区域从原图裁剪后各自 OCR；
+    否则整图 OCR，题号记为 1。裁剪文件写入 config.SEGMENT_OUTPUT_FOLDER，
+    文件名用 uuid 防并发冲突。
     """
     if enable_segment:
         from services.segment import crop_region, segment_image
 
         regions = segment_image(path)
         if len(regions) > 1:
+            from services.region_ocr import regions_with_shared_enhance
+
+            shared = regions_with_shared_enhance(path, lang, regions)
+            if shared is not None:
+                return shared
             os.makedirs(config.SEGMENT_OUTPUT_FOLDER, exist_ok=True)
             result = []
             for region in regions:
