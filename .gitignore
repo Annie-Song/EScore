@@ -63,6 +63,9 @@ uploads/
 output/reports/
 output/enhance/
 
+# 批改记录数据库及其 WAL/SHM 文件
+output/*.db*
+
 # 超分模型权重（大文件，官方云盘/Releases 下载，不入库）
 ESRGAN/models/*.pth
 
