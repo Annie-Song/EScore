@@ -62,6 +62,7 @@ uploads/
 # 运行时生成的批改报告与增强图（output/ 下已有实验 csv 需保留跟踪）
 output/reports/
 output/enhance/
+output/segments/
 
 # 批改记录数据库及其 WAL/SHM 文件
 output/*.db*

@@ -31,3 +31,14 @@ SEGMENT_MIN_HEIGHT = 15      # 噪声带最小高度：低于 15px 的带丢弃
 
 # 批改记录 SQLite 数据库文件，WAL 模式
 DB_PATH = './output/grades.db'
+
+# 参考答案嵌入缓存上限：满则整体清空重算，保证内存有界（缓存只是优化）
+REF_CACHE_MAX = 256
+
+# 错因 AI 归类：默认关闭（基础用户规则分档），落入模糊带才调 DeepSeek 细分类
+ERROR_AI_MODE = False
+ERROR_AI_BAND_LOW = 30.0  # 模糊带下界：低于此分一律规则分档
+ERROR_AI_BAND_HIGH = 85.0  # 模糊带上界：高于此分一律规则分档
+
+# 批量批改分区裁剪临时目录（文件名用 uuid，防并发冲突）
+SEGMENT_OUTPUT_FOLDER = './output/segments'
