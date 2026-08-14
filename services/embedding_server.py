@@ -114,8 +114,11 @@ def encode(payload: _EncodeRequest) -> dict:
 @app.post("/similarity")
 def similarity(payload: _SimilarityRequest) -> dict:
     """计算参考文本与学生答案的语义相似度（归一化向量点积）。"""
-    vectors = _get_model().encode([payload.reference, payload.answer], normalize_embeddings=True)
-    return {"score": float(np.dot(vectors[0], vectors[1]))}
+    ref_vector = _cached_encode_reference(payload.reference)
+    if ref_vector.size == 0:
+        return {"score": 0.0}
+    answer_vector = _get_model().encode([payload.answer], normalize_embeddings=True)[0]
+    return {"score": float(np.dot(ref_vector, answer_vector))}
 
 
 @app.post("/encode_reference")

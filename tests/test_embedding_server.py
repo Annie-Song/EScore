@@ -73,24 +73,95 @@ def test_encode_non_list_texts_returns_422(client: TestClient) -> None:
 
 
 def test_similarity_identical_vectors_return_one(client: TestClient) -> None:
-    """相同参考与答案向量点积为 1。"""
+    """参考与答案编码为相同向量时 /similarity 返回 1.0，参考与答案各编码一次。"""
+
+    def fake_encode(texts: list[str], normalize_embeddings: bool = True) -> np.ndarray:
+        if texts == ["同一参考"]:
+            return np.array([[1.0, 0.0]])
+        return np.array([[1.0, 0.0]])
+
     model = Mock()
-    model.encode.return_value = np.array([[1.0, 0.0], [1.0, 0.0]])
+    model.encode.side_effect = fake_encode
     with patch.object(server_module, "_get_model", return_value=model):
         resp = client.post("/similarity", json={"reference": "同一参考", "answer": "同一答案"})
     assert resp.status_code == 200
     assert resp.json() == {"score": 1.0}
-    model.encode.assert_called_once_with(["同一参考", "同一答案"], normalize_embeddings=True)
+    assert model.encode.call_args_list == [
+        call(["同一参考"], normalize_embeddings=True),
+        call(["同一答案"], normalize_embeddings=True),
+    ]
 
 
 def test_similarity_orthogonal_vectors_return_zero(client: TestClient) -> None:
-    """正交参考与答案向量点积为 0。"""
+    """正交参考与答案向量点积为 0，参考经缓存路径、答案单独编码。"""
+
+    def fake_encode(texts: list[str], normalize_embeddings: bool = True) -> np.ndarray:
+        if texts == ["参考"]:
+            return np.array([[1.0, 0.0]])
+        return np.array([[0.0, 1.0]])
+
     model = Mock()
-    model.encode.return_value = np.array([[1.0, 0.0], [0.0, 1.0]])
+    model.encode.side_effect = fake_encode
     with patch.object(server_module, "_get_model", return_value=model):
         resp = client.post("/similarity", json={"reference": "参考", "answer": "答案"})
     assert resp.status_code == 200
     assert resp.json() == {"score": 0.0}
+
+
+def test_similarity_same_reference_twice_reuses_cache_without_reencode(client: TestClient) -> None:
+    """同一参考连续两次 /similarity：第二次参考命中缓存不重复编码，答案仍每次编码。"""
+
+    def fake_encode(texts: list[str], normalize_embeddings: bool = True) -> np.ndarray:
+        if texts == ["参考"]:
+            return np.array([[1.0, 0.0]])
+        return np.array([[1.0, 0.0]])
+
+    model = Mock()
+    model.encode.side_effect = fake_encode
+    with patch.object(server_module, "_get_model", return_value=model):
+        first = client.post("/similarity", json={"reference": "参考", "answer": "答案"})
+        second = client.post("/similarity", json={"reference": "参考", "answer": "答案"})
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json() == {"score": 1.0}
+    assert second.json() == {"score": 1.0}
+    assert model.encode.call_args_list == [
+        call(["参考"], normalize_embeddings=True),
+        call(["答案"], normalize_embeddings=True),
+        call(["答案"], normalize_embeddings=True),
+    ]
+
+
+def test_similarity_reference_precached_not_reencoded(client: TestClient) -> None:
+    """参考已通过 /encode_reference 写入缓存时，/similarity 复用缓存不重复编码参考。"""
+
+    def fake_encode(texts: list[str], normalize_embeddings: bool = True) -> np.ndarray:
+        if texts == ["参考"]:
+            return np.array([[1.0, 0.0]])
+        return np.array([[0.0, 1.0]])
+
+    model = Mock()
+    model.encode.side_effect = fake_encode
+    with patch.object(server_module, "_get_model", return_value=model):
+        pre = client.post("/encode_reference", json={"text": "参考"})
+        resp = client.post("/similarity", json={"reference": "参考", "answer": "答案"})
+    assert pre.status_code == 200
+    assert resp.status_code == 200
+    assert resp.json() == {"score": 0.0}
+    assert model.encode.call_args_list == [
+        call(["参考"], normalize_embeddings=True),
+        call(["答案"], normalize_embeddings=True),
+    ]
+
+
+def test_similarity_empty_reference_returns_zero_without_encode(client: TestClient) -> None:
+    """/similarity 参考为空返回 {"score": 0.0}，且不触发任何编码。"""
+    model = Mock()
+    with patch.object(server_module, "_get_model", return_value=model):
+        resp = client.post("/similarity", json={"reference": "", "answer": "答案"})
+    assert resp.status_code == 200
+    assert resp.json() == {"score": 0.0}
+    model.encode.assert_not_called()
 
 
 def test_encode_reference_same_text_uses_cache_without_reencode(client: TestClient) -> None:
