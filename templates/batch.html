@@ -667,6 +667,7 @@
       <h1>批量作业批改</h1>
       <p>上传参考答案与多份作业图片，自动识别、评分并生成统计报告</p>
       <a href="/" class="back-link">← 返回首页</a>
+      <a href="/guide" class="back-link" style="margin-left: 16px">使用教程</a>
     </div>
     <form id="batchForm">
       <div class="card">
@@ -710,6 +711,13 @@
               <option value="fast">快速版（默认，更快更省）</option>
               <option value="quality">高质版（更准，差档作答更多精排）</option>
             </select>
+            <p style="
+                  margin-top: 6px;
+                  color: var(--light-text);
+                  font-size: 13px;
+                ">
+              快速版：低分才转精排，更快更省；高质版：更多作答转精排，更准但更慢。
+            </p>
           </div>
         </div>
         <div class="custom-checkbox-container">
@@ -719,6 +727,13 @@
             智能分区（一图多题切分）
           </label>
         </div>
+        <p style="
+              margin-top: 6px;
+              color: var(--light-text);
+              font-size: 13px;
+            ">
+          勾选后，一张含多道题的作业图会按题号自动切分为独立区域，逐区域识别并分别评分。
+        </p>
         <div class="custom-checkbox-container">
           <input type="checkbox" id="errorAiMode" class="custom-checkbox">
           <label for="errorAiMode" class="custom-checkbox-label">
@@ -726,6 +741,13 @@
             AI 错因归类（进阶）
           </label>
         </div>
+        <p style="
+              margin-top: 6px;
+              color: var(--light-text);
+              font-size: 13px;
+            ">
+          勾选后，系统会对低分作答自动归类常见错因（如概念混淆、计算错误等），在批改明细中展示。需调用在线模型，耗时更长。
+        </p>
       </div>
       <div class="btn-container">
         <button type="button" id="startBatchBtn" class="full-width-btn" disabled>
