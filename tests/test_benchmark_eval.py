@@ -1,8 +1,9 @@
 """评测离线 benchmark（scripts/benchmark_eval.py）单元测试。
 
 覆盖 AUC / Spearman 统计函数、_collect 明细行收集（patch 调用方模块命名空间）、
-档位判别力指标、路由策略模拟、档位真实性校验与 main 空数据退出码。
-外部依赖（offline_score / should_route / load_generated_cases）全部 mock。
+档位判别力指标、多指标均值、composite 综合判别、路由策略模拟、档位真实性校验
+与 main 空数据退出码。外部依赖（offline_score / should_route / load_generated_cases）
+及三个纯文本指标全部 mock。
 """
 import sys
 from pathlib import Path
@@ -45,7 +46,7 @@ def test_spearman_正负相关():
 
 
 def test_collect_调用离线分与路由():
-    """_collect 按 (reference, answer) 调离线分、按分数调路由，并跳过缺失档位。"""
+    """_collect 按 (reference, answer) 调离线分、路由与三个纯文本指标，并跳过缺失档位。"""
     cases = [
         GeneratedCase(
             subject="语文", index=1, question="题干一", reference="ref1",
@@ -57,6 +58,12 @@ def test_collect_调用离线分与路由():
         ),
     ]
     score_map = {"优1": 90.0, "中1": 70.0, "差1": 40.0, "优2": 95.0}
+    metric_map = {
+        "优1": (0.9, 0.8, 1.2),
+        "中1": (0.5, 0.4, 1.0),
+        "差1": (0.1, 0.2, 0.6),
+        "优2": (0.8, 0.7, 1.1),
+    }
 
     def fake_offline(reference: str, answer: str) -> float:
         return score_map[answer]
@@ -64,21 +71,41 @@ def test_collect_调用离线分与路由():
     def fake_should_route(score: float) -> bool:
         return score < 60.0
 
+    def fake_ngram(reference: str, answer: str) -> float:
+        return metric_map[answer][0]
+
+    def fake_dice(reference: str, answer: str) -> float:
+        return metric_map[answer][1]
+
+    def fake_ratio(reference: str, answer: str) -> float:
+        return metric_map[answer][2]
+
     with patch.object(benchmark_eval, "offline_score", side_effect=fake_offline) as mock_offline, \
-         patch.object(benchmark_eval, "should_route", side_effect=fake_should_route):
+         patch.object(benchmark_eval, "should_route", side_effect=fake_should_route), \
+         patch.object(benchmark_eval, "reference_ngram_coverage", side_effect=fake_ngram) as mock_ngram, \
+         patch.object(benchmark_eval, "lexical_dice", side_effect=fake_dice) as mock_dice, \
+         patch.object(benchmark_eval, "length_ratio", side_effect=fake_ratio) as mock_ratio:
         rows = benchmark_eval._collect(cases, limit=0)
 
         assert len(rows) == 4  # case1 三档 + case2 仅 good，共 4 条作答
-        assert rows[0] == {"subject": "语文", "index": 1, "tier": "good", "score": 90.0, "routed": False}
-        assert rows[1] == {"subject": "语文", "index": 1, "tier": "medium", "score": 70.0, "routed": False}
-        assert rows[2] == {"subject": "语文", "index": 1, "tier": "bad", "score": 40.0, "routed": True}
-        assert rows[3] == {"subject": "语文", "index": 2, "tier": "good", "score": 95.0, "routed": False}
+        assert rows[0] == {"subject": "语文", "index": 1, "tier": "good", "score": 90.0, "routed": False,
+                           "ngram_coverage": 0.9, "lexical_dice": 0.8, "length_ratio": 1.2}
+        assert rows[1] == {"subject": "语文", "index": 1, "tier": "medium", "score": 70.0, "routed": False,
+                           "ngram_coverage": 0.5, "lexical_dice": 0.4, "length_ratio": 1.0}
+        assert rows[2] == {"subject": "语文", "index": 1, "tier": "bad", "score": 40.0, "routed": True,
+                           "ngram_coverage": 0.1, "lexical_dice": 0.2, "length_ratio": 0.6}
+        assert rows[3] == {"subject": "语文", "index": 2, "tier": "good", "score": 95.0, "routed": False,
+                           "ngram_coverage": 0.8, "lexical_dice": 0.7, "length_ratio": 1.1}
 
         called = [c.args for c in mock_offline.call_args_list]
         assert ("ref1", "优1") in called
-    assert ("ref1", "中1") in called
-    assert ("ref1", "差1") in called
-    assert ("ref2", "优2") in called
+        assert ("ref1", "中1") in called
+        assert ("ref1", "差1") in called
+        assert ("ref2", "优2") in called
+        # 三个纯文本指标同样按 (reference, answer) 调用
+        assert ("ref1", "优1") in [c.args for c in mock_ngram.call_args_list]
+        assert ("ref1", "中1") in [c.args for c in mock_dice.call_args_list]
+        assert ("ref2", "优2") in [c.args for c in mock_ratio.call_args_list]
 
 
 def test_collect_limit截断():
@@ -155,3 +182,56 @@ def test_main_缓存缺失抛错():
     with patch.object(benchmark_eval, "load_generated_cases", side_effect=FileNotFoundError):
         with pytest.raises(FileNotFoundError):
             benchmark_eval.main([])
+
+
+def test_multi_metrics_各档三指标均值():
+    """_multi_metrics 按档位计算三个纯文本指标均值，缺失档位不出现在结果。"""
+    rows = [
+        {"tier": "good", "ngram_coverage": 0.8, "lexical_dice": 0.7, "length_ratio": 1.0},
+        {"tier": "good", "ngram_coverage": 0.4, "lexical_dice": 0.5, "length_ratio": 1.2},
+        {"tier": "bad", "ngram_coverage": 0.1, "lexical_dice": 0.2, "length_ratio": 0.5},
+    ]
+    result = benchmark_eval._multi_metrics(rows)
+
+    assert result["good"] == pytest.approx({"ngram_coverage": 0.6, "lexical_dice": 0.6, "length_ratio": 1.1})
+    assert result["bad"] == pytest.approx({"ngram_coverage": 0.1, "lexical_dice": 0.2, "length_ratio": 0.5})
+    assert "medium" not in result
+
+
+def test_multi_metrics_无某档不报错():
+    """仅含部分档位时按存在的档位输出，不抛异常。"""
+    rows = [
+        {"tier": "medium", "ngram_coverage": 0.5, "lexical_dice": 0.4, "length_ratio": 1.0},
+    ]
+    assert benchmark_eval._multi_metrics(rows) == {
+        "medium": {"ngram_coverage": 0.5, "lexical_dice": 0.4, "length_ratio": 1.0},
+    }
+
+
+def test_composite_score_公式正确():
+    """composite = 100*(score/100 + coverage + dice + ratio/2)/4 按定义计算。"""
+    row = {"score": 80.0, "ngram_coverage": 0.5, "lexical_dice": 0.5, "length_ratio": 1.0}
+    assert benchmark_eval._composite_score(row) == pytest.approx(57.5)
+
+
+def test_composite_score_边界0到100():
+    """四分量全 0 时 composite=0，全满分（length_ratio 取上限 2.0）时 composite=100。"""
+    row_min = {"score": 0.0, "ngram_coverage": 0.0, "lexical_dice": 0.0, "length_ratio": 0.0}
+    row_max = {"score": 100.0, "ngram_coverage": 1.0, "lexical_dice": 1.0, "length_ratio": 2.0}
+    assert benchmark_eval._composite_score(row_min) == pytest.approx(0.0)
+    assert benchmark_eval._composite_score(row_max) == pytest.approx(100.0)
+
+
+def test_composite_metrics_拉开优劣():
+    """composite 强分离优/差（AUC=1.0），档位 Spearman 呈正相关。"""
+    rows = [
+        {"tier": "good", "score": 90.0, "ngram_coverage": 0.9, "lexical_dice": 0.9, "length_ratio": 1.5},
+        {"tier": "good", "score": 85.0, "ngram_coverage": 0.8, "lexical_dice": 0.8, "length_ratio": 1.2},
+        {"tier": "medium", "score": 50.0, "ngram_coverage": 0.5, "lexical_dice": 0.4, "length_ratio": 1.0},
+        {"tier": "bad", "score": 30.0, "ngram_coverage": 0.1, "lexical_dice": 0.1, "length_ratio": 0.5},
+        {"tier": "bad", "score": 20.0, "ngram_coverage": 0.0, "lexical_dice": 0.1, "length_ratio": 0.3},
+    ]
+    result = benchmark_eval._composite_metrics(rows)
+
+    assert result["auc_good_vs_bad"] == pytest.approx(1.0)
+    assert result["spearman"] > 0.5
