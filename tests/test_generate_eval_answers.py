@@ -113,3 +113,110 @@ def test_write_cache_规范落盘(tmp_path, monkeypatch):
     assert first["tiers"] == {"good": "优1", "medium": "中1", "bad": "差1"}
     assert second["subject"] == "b_subject"
     assert second["reference"] == "标准答案二"
+
+
+def test_tier_prompt_good_允许参照参考答案措辞():
+    """good 档提示词允许参照参考答案措辞组织，且无强制改写表述。"""
+    good = generate_eval_answers._TIER_PROMPTS["good"]
+    assert "参照参考答案的措辞" in good
+    assert "用自己的话表达" not in good
+    assert good.endswith("只输出作答文本，不要任何解释或质量标注。")
+
+
+def test_tier_prompt_medium_禁止照抄参考答案():
+    """medium 档提示词禁止照抄参考答案原文措辞，并保留部分要点定位。"""
+    medium = generate_eval_answers._TIER_PROMPTS["medium"]
+    assert "不要直接照抄参考答案的原文措辞" in medium
+    assert "用自己的话概括" in medium
+    assert "只覆盖部分要点" in medium
+
+
+def test_tier_prompt_bad_保持低质量定位():
+    """bad 档提示词保持答非所问/要点缺失/明显错误定位。"""
+    bad = generate_eval_answers._TIER_PROMPTS["bad"]
+    assert "答非所问、要点缺失或包含明显错误" in bad
+
+
+def test_tier_prompt_三档都保留只输出作答文本尾部():
+    """三档提示词都以'只输出作答文本'尾部约束结束。"""
+    tail = "只输出作答文本，不要任何解释或质量标注。"
+    for tier in generate_eval_answers._TIERS:
+        assert generate_eval_answers._TIER_PROMPTS[tier].endswith(tail)
+
+
+def _seed_cache(path: Path, tiers: dict[str, str]) -> None:
+    """写入一条 a_subject #1 的预置缓存，供 main 增量/force 场景复用。"""
+    payload = {
+        "meta": {"count": 1},
+        "answers": [
+            {
+                "subject": "a_subject",
+                "index": 1,
+                "question": "题干一",
+                "reference": "标准答案一",
+                "tiers": tiers,
+            }
+        ],
+    }
+    path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+
+def test_main_默认增量跳过已有档位(tmp_path, monkeypatch):
+    """不加 --force：缓存已存在的档位被跳过，仅补缺失档位并返回 0。"""
+    questions = [
+        Question(subject="a_subject", year="2020", category="诗歌",
+                 question="题干一", answer="标准答案一", score=5, index=1)
+    ]
+    monkeypatch.setattr(generate_eval_answers, "load_gaokao_questions", lambda: questions)
+    path = tmp_path / "answers.json"
+    _seed_cache(path, {"good": "已有优作答"})
+
+    with patch.object(generate_eval_answers, "_generate_answer", return_value="新作答") as gen:
+        rc = generate_eval_answers.main(["--out", str(path), "--tiers", "good", "medium", "bad"])
+
+    assert rc == 0
+    assert sorted(call.args[2] for call in gen.call_args_list) == ["bad", "medium"]
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert data["answers"][0]["tiers"] == {
+        "good": "已有优作答", "medium": "新作答", "bad": "新作答",
+    }
+
+
+def test_main_force_重生成指定档位并覆盖缓存(tmp_path, monkeypatch):
+    """加 --force：--tiers 指定档位即使缓存已存在也重新生成并覆盖。"""
+    questions = [
+        Question(subject="a_subject", year="2020", category="诗歌",
+                 question="题干一", answer="标准答案一", score=5, index=1)
+    ]
+    monkeypatch.setattr(generate_eval_answers, "load_gaokao_questions", lambda: questions)
+    path = tmp_path / "answers.json"
+    _seed_cache(path, {"good": "旧优", "medium": "旧中"})
+
+    with patch.object(generate_eval_answers, "_generate_answer", return_value="新作答") as gen:
+        rc = generate_eval_answers.main(
+            ["--limit", "1", "--out", str(path), "--tiers", "good", "medium", "--force"]
+        )
+
+    assert rc == 0
+    assert sorted(call.args[2] for call in gen.call_args_list) == ["good", "medium"]
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert data["answers"][0]["tiers"] == {"good": "新作答", "medium": "新作答"}
+
+
+def test_main_force_不重生成未指定档位(tmp_path, monkeypatch):
+    """--force 只作用于 --tiers 指定档位，bad 档不被强制重生成。"""
+    questions = [
+        Question(subject="a_subject", year="2020", category="诗歌",
+                 question="题干一", answer="标准答案一", score=5, index=1)
+    ]
+    monkeypatch.setattr(generate_eval_answers, "load_gaokao_questions", lambda: questions)
+    path = tmp_path / "answers.json"
+    _seed_cache(path, {"good": "已有优", "bad": "已有差"})
+
+    with patch.object(generate_eval_answers, "_generate_answer", return_value="新作答") as gen:
+        rc = generate_eval_answers.main(["--out", str(path), "--tiers", "good", "--force"])
+
+    assert rc == 0
+    assert [call.args[2] for call in gen.call_args_list] == ["good"]
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert data["answers"][0]["tiers"] == {"good": "新作答", "bad": "已有差"}
