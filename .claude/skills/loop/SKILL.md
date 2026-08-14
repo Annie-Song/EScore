@@ -27,24 +27,26 @@ description: 执行一次完整迭代闭环（确定版本号→开版本分支�
 2. 从 main 开版本分支 version/x.y.z
 3. 冒烟检查（ggrade 环境）：python -c "from app import create_app"
 4. 读取上轮产物：迭代反馈表、bugLOG、上一版版本迭代报告
+5. 预检固定项（避免重复踩坑）：memory/ 已被 .gitignore 忽略，git add/commit 永不收录 memory/；交付前约束门禁脚本位于 scripts/check_constraints.py，Phase 2 步骤 12 必须通过
 
 ## Phase 1 规划
 
 5. 筛"待处理"且 P0/P1 的问题，加用户新需求，按优先级排序
 6. 为每个任务写 plan：目标、方案、涉及文件、验收标准（DoD）、依赖关系
-7. 关键方案用 AskUserQuestion 给多选让用户拍板
+7. 关键方案用 AskUserQuestion 给多选让用户拍板；架构/取舍类问题把推荐项放第一选项并标注"（推荐）"，减少澄清往返
 8. 涉及性能的任务先记录优化前基线
 
 ## Phase 2 执行（内循环，逐任务）
 
 9. 任务较多（≥3 个）时为该任务开分支 task/<编号>
 10. 实现 agent（子代理）编写业务代码，只做实现不写测试
-11. 测试 agent（独立子代理）编写单元测试并运行（ggrade 环境 python -m pytest），独立验证实现 agent 的产出；失败回到 10 由实现 agent 修复
-12. 有 bug：可修 → 修复并记入 bugLOG.md；跨版本无法解决 → 记入迭代反馈表标"待处理/已延后"
-13. 单测通过后 merge --no-ff 回版本分支
-14. 更新迭代反馈表（任务状态 → 已完成）
-15. 按 git 规范提交
-16. 进入下一子任务
+11. 测试 agent（独立子代理）编写单元测试并运行（ggrade 环境 python -m pytest），独立验证实现 agent 的产出；失败回到 10 由实现 agent 修复。patch 约定：`from x import y` 会把 y 绑定到调用方模块命名空间，mock 目标必须是调用方模块（如 services.batch_scoring.should_route），不是被导入的 services.scoring
+12. 约束门禁（交付前，避免事后返工）：ggrade 环境跑 python scripts/check_constraints.py，硬约束（业务目录 .py ≤200 行、模块级公开函数 ≤5）不通过 → 回到 10 拆分重构，通过后再往下走
+13. 有 bug：可修 → 修复并记入 bugLOG.md；跨版本无法解决 → 记入迭代反馈表标"待处理/已延后"
+14. 单测与门禁均通过后 merge --no-ff 回版本分支
+15. 更新迭代反馈表（任务状态 → 已完成）
+16. 按 git 规范提交
+17. 进入下一子任务
 
 ## Phase 3 联合测试
 

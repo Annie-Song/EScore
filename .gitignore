@@ -50,12 +50,6 @@ env/
 # 忽略log文件
 log/
 
-Scripts
-
-Libs
-
-add
-
 # 运行时目录（用户上传与生成结果）
 uploads/
 
