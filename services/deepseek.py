@@ -40,6 +40,11 @@ def _get_client() -> OpenAI:
     return _client
 
 
+def get_client() -> OpenAI:
+    """获取懒加载的 DeepSeek OpenAI 客户端（评分与评测作答生成复用）。"""
+    return _get_client()
+
+
 def get_points(reference: str, query: str) -> Optional[float]:
     """使用 DeepSeek 评估学生答案与参考答案的相似度。
 

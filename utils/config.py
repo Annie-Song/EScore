@@ -36,6 +36,24 @@ DB_PATH = './output/grades.db'
 # 参考答案嵌入缓存上限：满则整体清空重算，保证内存有界（缓存只是优化）
 REF_CACHE_MAX = 256
 
+# 评分评测集（A9）：GAOKAO-Bench 题库 + DeepSeek 三档生成作答 + 离线 benchmark
+EVAL_GAOKAO_DIR = './data/gaokao'  # GAOKAO-Bench 根目录（已下载，题目+标准答案+分值）
+EVAL_GAOKAO_SUBJECTIVE_DIR = 'Data/Subjective_Questions'  # 主观题相对路径
+# 纳入评测的中文主观题文件（全部含标准答案与给分点，与中文作业批改语义一致）
+EVAL_SUBJECT_FILES = [
+    '2010-2022_Chinese_Language_Ancient_Poetry_Reading.json',
+    '2010-2022_Chinese_Language_Classical_Chinese_Reading.json',
+    '2010-2022_Chinese_Language_Famous_Passages_and_Sentences_Dictation.json',
+    '2010-2022_Chinese_Language_Language_and_Writing_Skills_Open-ended_Questions.json',
+    '2010-2022_Chinese_Language_Literary_Text_Reading.json',
+    '2010-2022_Chinese_Language_Practical_Text_Reading.json',
+]
+EVAL_SAMPLE_PER_FILE = 10  # 每类题目采样上限（控制 DeepSeek 生成成本：10×6 题 ×3 档 ≈ 180 次调用）
+EVAL_ANSWERS_PATH = './data/eval/answers.json'  # 三档生成作答缓存（生成一次，评测纯离线）
+# 档位真实性独立校验（MiniLM 语义分，与生成器无关）：优档离线分低于此值视为可疑、差档高于此值视为可疑
+EVAL_TIER_SUSPECT_GOOD_BELOW = 0.6
+EVAL_TIER_SUSPECT_BAD_ABOVE = 0.7
+
 # 向量嵌入微服务监听地址：A8 拆分为独立 FastAPI 进程，客户端按此地址对接
 EMBEDDING_SERVICE_HOST = "127.0.0.1"
 EMBEDDING_SERVICE_PORT = 8765
