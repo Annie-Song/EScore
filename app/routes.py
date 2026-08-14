@@ -32,6 +32,12 @@ def home():
     return render_template('index.html')
 
 
+@bp.route('/guide')
+def guide():
+    """渲染快速开始教程页。"""
+    return render_template('guide.html')
+
+
 @bp.route('/ocr', methods=['POST'])
 def ocr_service():
     """识别学生作业图片与参考答案图片中的文字。"""
