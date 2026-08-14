@@ -19,10 +19,15 @@ from __future__ import annotations
 
 import argparse
 import statistics
+import sys
 import threading
 import time
+from pathlib import Path
 
 import httpx
+
+# 支持 `python scripts/xxx.py` 直接运行：把项目根加入 sys.path，使 services/utils 可导入
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from services import batch_scoring, scoring
 from utils import config
