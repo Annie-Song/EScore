@@ -95,6 +95,14 @@ pytest
 
 批量评分对参考答案嵌入做预计算缓存，同一参考对多份作业只编码一次参考向量，全部答案一次批量编码（N=20 时较逐对评分快约 4.7 倍）。
 
+## 分类题库（2.11.0）
+
+首页/批量页点击「分类题库」进入 `/bank`，可浏览检索 GAOKAO-Bench 全量高考题（2811 题：主观 1030 + 客观 1781，10 科目、14 题型），按科目/题型/难度/题目类型/年份/关键词过滤，作为后续组卷（RAG）的数据底座。
+
+- **数据来源**：需先自行下载 [GAOKAO-Bench](https://github.com/OpenLMLab/GAOKAO-Bench) 到 `data/gaokao/`（含 `Data/Subjective_Questions`、`Data/Objective_Questions` 与 `Results/gpt_4_0314_obj` 客观题作答结果）。
+- **构建**：`python scripts/build_question_bank.py`，全量入库 `output/question_bank.db`（确定性标签：科目/题型/难度/年级/年份/地区；客观题难度来自 gpt-4 作答对错，主观题用分值分档弱代理）。
+- **API**：`GET /api/bank/facets`（科目/题型/难度分布）、`GET /api/bank/search`（过滤 + 关键词 + 分页）、`GET /api/bank/questions/<qid>`（单题详情）。库未构建时接口返回 503 并提示运行构建脚本，页面有对应文案。
+
 ## 训练数据来源
 
 图像增强实验使用 DIV2K 数据集：https://data.vision.ee.ethz.ch/cvl/DIV2K/
