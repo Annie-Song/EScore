@@ -14,7 +14,7 @@ from typing import List, Optional, Tuple
 import cv2
 
 from services import enhance
-from services.ocr import enhance_retry, ocr_instance, recognize_lines_of
+from services.ocr_core import enhance_retry, ocr_instance, recognize_lines_of
 from services.segment import crop_region
 from utils import config
 

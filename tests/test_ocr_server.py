@@ -1,6 +1,6 @@
 """services/ocr_server.py FastAPI OCR 微服务的单元测试。
 
-通过 mock services.ocr / services.segment / services.region_ocr 模块命名空间内的
+通过 mock services.ocr_core / services.segment / services.region_ocr 模块命名空间内的
 函数（patch 约定见任务说明），覆盖 5 个端点的正常路径、空输入短路、tuple bbox
 序列化、None 降级语义与 mock 抛异常返回 500。全程不触发真实 PaddleOCR/ESRGAN，
 可离线独立运行。
@@ -28,7 +28,7 @@ def test_health_returns_ok_service_ocr():
 def test_recognize_texts_returns_texts():
     """/recognize_texts 正常识别：mock 返回文本列表，响应按 {texts: [...]} 透传。"""
     with _make_client() as client, patch(
-        "services.ocr.recognize_texts", return_value=["第一题答案", "第二题答案"]
+        "services.ocr_core.recognize_texts", return_value=["第一题答案", "第二题答案"]
     ) as mock_rec:
         resp = client.post(
             "/recognize_texts", json={"paths": ["a.png", "b.png"], "lang": "ch"}
@@ -40,7 +40,7 @@ def test_recognize_texts_returns_texts():
 
 def test_recognize_texts_empty_paths_short_circuits_without_ocr():
     """/recognize_texts 空 paths 本地短路返回 {texts: []}，不调用 OCR。"""
-    with _make_client() as client, patch("services.ocr.recognize_texts") as mock_rec:
+    with _make_client() as client, patch("services.ocr_core.recognize_texts") as mock_rec:
         resp = client.post("/recognize_texts", json={"paths": [], "lang": "ch"})
     assert resp.status_code == 200
     assert resp.json() == {"texts": []}
@@ -50,7 +50,7 @@ def test_recognize_texts_empty_paths_short_circuits_without_ocr():
 def test_recognize_texts_mock_raises_returns_500():
     """/recognize_texts 底层识别抛异常 → 响应 500，fail-fast 不塞默认值。"""
     with _make_client(raise_server_exceptions=False) as client, patch(
-        "services.ocr.recognize_texts", side_effect=RuntimeError("mock ocr fail")
+        "services.ocr_core.recognize_texts", side_effect=RuntimeError("mock ocr fail")
     ):
         resp = client.post(
             "/recognize_texts", json={"paths": ["a.png"], "lang": "ch"}

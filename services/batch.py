@@ -112,11 +112,11 @@ def _regions_of(path: str, lang: str, enable_segment: bool) -> list[dict]:
     文件名用 uuid 防并发冲突。
     """
     if enable_segment:
-        from services.segment import crop_region, segment_image
+        from services.ocr import crop_region, segment_image
 
         regions = segment_image(path)
         if len(regions) > 1:
-            from services.region_ocr import regions_with_shared_enhance
+            from services.ocr import regions_with_shared_enhance
 
             shared = regions_with_shared_enhance(path, lang, regions)
             if shared is not None:
