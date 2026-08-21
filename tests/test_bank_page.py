@@ -99,24 +99,25 @@ def test_bank模板_503与错误提示文案() -> None:
 
 
 def test_bank模板_主题开关存在() -> None:
-    """主题切换控件与 data-theme/localStorage 逻辑存在。"""
-    html = _read_template("bank.html")
-    assert 'id="themeToggle"' in html
-    assert "data-theme" in html
-    assert "localStorage" in html
-    assert '"theme"' in html
+    """主题切换控件随重构移入 base.html，data-theme/localStorage 逻辑移入 static/app.js。"""
+    base_html = _read_template("base.html")
+    assert 'id="themeToggle"' in base_html
+    js = (_BASE_DIR / "static" / "app.js").read_text(encoding="utf-8")
+    assert "data-theme" in js
+    assert "localStorage" in js
+    assert '"theme"' in js
 
 
-def test_index入口链接() -> None:
-    """首页含 href=/bank 分类题库入口。"""
-    html = _read_template("index.html")
+def test_index入口链接(client: Any) -> None:
+    """首页含 href=/bank 分类题库入口（统一导航由 base.html 继承渲染）。"""
+    html = client.get("/").get_data(as_text=True)
     assert 'href="/bank"' in html
     assert "分类题库" in html
 
 
-def test_batch入口链接() -> None:
-    """批量批改页含 href=/bank 分类题库入口。"""
-    html = _read_template("batch.html")
+def test_batch入口链接(client: Any) -> None:
+    """批量批改页含 href=/bank 分类题库入口（统一导航由 base.html 继承渲染）。"""
+    html = client.get("/batch").get_data(as_text=True)
     assert 'href="/bank"' in html
     assert "分类题库" in html
 

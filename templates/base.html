@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}智能作业批改系统{% endblock %}</title>
+  <link rel="stylesheet" href="/static/app.css" />
+  {% block styles %}{% endblock %}
+</head>
+
+<body>
+  <!-- 主题切换 -->
+  <div class="theme-toggle-container">
+    <span class="theme-label">主题:</span>
+    <label class="theme-switch">
+      <input type="checkbox" id="themeToggle" />
+      <span class="slider">
+        <span class="slider-icons">
+          <span>☀️</span>
+          <span>🌙</span>
+        </span>
+      </span>
+    </label>
+  </div>
+  <!-- 统一顶部导航：当前页高亮 -->
+  <nav class="top-nav">
+    <a href="/" class="nav-item{% if request.path == '/' %} active{% endif %}">首页</a>
+    <a href="/batch" class="nav-item{% if request.path == '/batch' %} active{% endif %}">批量批改</a>
+    <a href="/bank" class="nav-item{% if request.path == '/bank' %} active{% endif %}">分类题库</a>
+    <a href="/guide" class="nav-item{% if request.path == '/guide' %} active{% endif %}">使用教程</a>
+  </nav>
+  {% block content %}{% endblock %}
+  <!-- 通知提示条 -->
+  <div class="notification" id="notification">
+    <div id="notificationMessage"></div>
+  </div>
+  <script src="/static/app.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+
+</html>

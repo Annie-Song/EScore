@@ -1,461 +1,207 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
+{% extends "base.html" %}
 
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>分类题库 - 智能作业批改系统</title>
-  <style>
-    :root {
-      --primary-color: #007aff;
-      --secondary-color: #005bb5;
-      --success-color: #34c759;
-      --warning-color: #ff3b30;
-      --light-bg: #f5f5f7;
-      --dark-text: #1c1c1e;
-      --light-text: #8e8e93;
-      --border-radius: 10px;
-      --box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-      --body-bg: #f5f5f7;
-      --card-bg: #ffffff;
-      --border-color: #e5e5ea;
-      --input-border: #c7c7cc;
-      --file-input-bg: #f5f5f7;
-      --notification-bg: rgba(0, 0, 0, 0.8);
-      --notification-text: #ffffff;
-    }
+{% block title %}分类题库 - 智能作业批改系统{% endblock %}
 
-    [data-theme="dark"] {
-      --primary-color: #0a84ff;
-      --secondary-color: #007aff;
-      --success-color: #30d158;
-      --warning-color: #ff453a;
-      --light-bg: #1c1c1e;
-      --dark-text: #e5e5ea;
-      /* 调整为浅灰色，护眼 */
-      --light-text: #8e8e93;
-      --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-      --body-bg: #121212;
-      /* 深灰色背景，护眼 */
-      --card-bg: #2c2c2e;
-      /* 稍浅灰色，柔和对比 */
-      --border-color: #3a3a3c;
-      --input-border: #3a3a3c;
-      --file-input-bg: #2c2c2e;
-      --notification-bg: rgba(255, 255, 255, 0.8);
-      --notification-text: #000000;
-    }
+{% block styles %}
+<style>
+  /* 分类题库页专属样式：筛选栏、结果卡、分页 */
+  .filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 14px;
+    margin-bottom: 8px;
+    padding: 20px;
+    background: var(--light-bg);
+    border-radius: var(--border-radius);
+  }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+  .filters label {
+    font-size: 13px;
+    margin-bottom: 5px;
+    color: var(--light-text);
+  }
 
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-        Roboto, "Helvetica Neue", Arial, sans-serif;
-      line-height: 1.6;
-      color: var(--dark-text);
-      background-color: var(--body-bg);
-      padding: 0;
-      margin: 0;
-      transition: all 0.3s ease;
-    }
+  .filters select,
+  .filters input {
+    margin-bottom: 0;
+  }
 
-    .container {
-      max-width: 1000px;
-      margin: 30px auto;
-      background: var(--card-bg);
-      padding: 40px;
-      border-radius: var(--border-radius);
-      box-shadow: var(--box-shadow);
-    }
+  .filter-actions {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+  }
 
-    .theme-toggle-container {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      z-index: 1000;
-      display: flex;
-      align-items: center;
-      background: var(--card-bg);
-      border-radius: 30px;
-      padding: 5px 15px;
-      box-shadow: var(--box-shadow);
-    }
+  .filter-actions button {
+    width: auto;
+    flex: 1;
+    min-width: 90px;
+  }
 
-    .theme-label {
-      margin-right: 10px;
-      font-size: 14px;
-      color: var(--dark-text);
-    }
+  /* 结果区 */
+  .result-info {
+    margin: 20px 0 12px;
+    color: var(--light-text);
+    font-size: 14px;
+  }
 
-    .theme-switch {
-      position: relative;
-      display: inline-block;
-      width: 50px;
-      height: 24px;
-    }
+  .result-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
 
-    .theme-switch input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
+  .result-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 18px 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+  }
 
-    .slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: var(--light-bg);
-      transition: 0.4s;
-      border-radius: 34px;
-    }
+  .result-card:hover {
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  }
 
-    .slider:before {
-      position: absolute;
-      content: "";
-      height: 18px;
-      width: 18px;
-      left: 3px;
-      bottom: 3px;
-      background-color: white;
-      transition: 0.4s;
-      border-radius: 50%;
-    }
+  .q-question {
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--dark-text);
+    margin-bottom: 10px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
 
-    input:checked+.slider {
-      background-color: var(--success-color);
-    }
+  .q-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
 
-    input:checked+.slider:before {
-      transform: translateX(26px);
-    }
+  .tag {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    color: #fff;
+  }
 
-    .slider-icons {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      display: flex;
-      justify-content: space-between;
-      padding: 3px 6px;
-      color: white;
-      font-size: 12px;
-    }
+  .tag-subject {
+    background-color: var(--primary-color);
+  }
 
-    .page-header {
-      text-align: center;
-      margin-bottom: 30px;
-      padding-bottom: 20px;
-      border-bottom: 1px solid var(--border-color);
-    }
+  .tag-qtype {
+    background-color: var(--secondary-color);
+  }
 
-    .page-header h1 {
-      color: var(--primary-color);
-      font-size: 36px;
-      margin-bottom: 10px;
-    }
+  .tag-difficulty {
+    background-color: var(--success-color);
+  }
 
-    .page-header p {
-      color: var(--light-text);
-      font-size: 16px;
-    }
+  .tag-year {
+    background-color: #8e8e93;
+  }
 
-    .batch-entry {
-      display: inline-block;
-      margin-top: 12px;
-      padding: 8px 18px;
-      background-color: var(--primary-color);
-      color: white;
-      border-radius: var(--border-radius);
-      text-decoration: none;
-      font-weight: 500;
-      font-size: 14px;
-      transition: background 0.3s;
-    }
+  .tag-region {
+    background-color: #ff9500;
+  }
 
-    .batch-entry:hover {
-      background-color: var(--secondary-color);
-    }
+  .tag-score {
+    background-color: var(--warning-color);
+  }
 
-    /* 筛选栏 */
+  .q-answer {
+    margin: 6px 0;
+  }
+
+  .q-answer summary {
+    cursor: pointer;
+    color: var(--primary-color);
+    font-size: 14px;
+    font-weight: 500;
+    user-select: none;
+  }
+
+  .q-answer-content {
+    margin-top: 8px;
+    padding: 10px 12px;
+    background: var(--light-bg);
+    border-radius: var(--border-radius);
+    font-size: 14px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--dark-text);
+  }
+
+  .q-analysis {
+    margin-top: 8px;
+    padding: 10px 12px;
+    background: rgba(255, 149, 0, 0.12);
+    border-left: 3px solid #ff9500;
+    border-radius: var(--border-radius);
+    font-size: 14px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--dark-text);
+  }
+
+  .detail-btn {
+    margin-top: 10px;
+    padding: 6px 16px;
+    font-size: 13px;
+    width: auto;
+    display: inline-flex;
+  }
+
+  .empty {
+    text-align: center;
+    color: var(--light-text);
+    padding: 40px 20px;
+    font-size: 15px;
+  }
+
+  .not-built {
+    color: var(--warning-color);
+    font-weight: 500;
+  }
+
+  /* 分页 */
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin: 24px 0 10px;
+  }
+
+  .pagination button {
+    padding: 8px 18px;
+    font-size: 14px;
+    width: auto;
+  }
+
+  .page-info {
+    color: var(--light-text);
+    font-size: 14px;
+  }
+
+  @media (max-width: 768px) {
     .filters {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-      gap: 14px;
-      margin-bottom: 8px;
-      padding: 20px;
-      background: var(--light-bg);
-      border-radius: var(--border-radius);
+      grid-template-columns: 1fr;
     }
+  }
+</style>
+{% endblock %}
 
-    .filters label {
-      font-size: 13px;
-      margin-bottom: 5px;
-      color: var(--light-text);
-    }
-
-    .filters select,
-    .filters input {
-      margin-bottom: 0;
-    }
-
-    .filter-actions {
-      display: flex;
-      gap: 10px;
-      align-items: flex-end;
-    }
-
-    .filter-actions button {
-      width: auto;
-      flex: 1;
-      min-width: 90px;
-    }
-
-    .btn-secondary {
-      background-color: var(--card-bg);
-      color: var(--primary-color);
-      border: 1px solid var(--primary-color);
-    }
-
-    .btn-secondary:hover {
-      background-color: var(--primary-color);
-      color: #fff;
-    }
-
-    /* 结果区 */
-    .result-info {
-      margin: 20px 0 12px;
-      color: var(--light-text);
-      font-size: 14px;
-    }
-
-    .result-list {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .result-card {
-      background: var(--card-bg);
-      border: 1px solid var(--border-color);
-      border-radius: var(--border-radius);
-      padding: 18px 20px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-      transition: all 0.3s ease;
-    }
-
-    .result-card:hover {
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    }
-
-    .q-question {
-      font-size: 15px;
-      line-height: 1.7;
-      color: var(--dark-text);
-      margin-bottom: 10px;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-
-    .q-tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-
-    .tag {
-      display: inline-block;
-      padding: 3px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-      color: #fff;
-    }
-
-    .tag-subject {
-      background-color: var(--primary-color);
-    }
-
-    .tag-qtype {
-      background-color: var(--secondary-color);
-    }
-
-    .tag-difficulty {
-      background-color: var(--success-color);
-    }
-
-    .tag-year {
-      background-color: #8e8e93;
-    }
-
-    .tag-region {
-      background-color: #ff9500;
-    }
-
-    .tag-score {
-      background-color: var(--warning-color);
-    }
-
-    .q-answer {
-      margin: 6px 0;
-    }
-
-    .q-answer summary {
-      cursor: pointer;
-      color: var(--primary-color);
-      font-size: 14px;
-      font-weight: 500;
-      user-select: none;
-    }
-
-    .q-answer-content {
-      margin-top: 8px;
-      padding: 10px 12px;
-      background: var(--light-bg);
-      border-radius: var(--border-radius);
-      font-size: 14px;
-      line-height: 1.7;
-      white-space: pre-wrap;
-      word-break: break-word;
-      color: var(--dark-text);
-    }
-
-    .q-analysis {
-      margin-top: 8px;
-      padding: 10px 12px;
-      background: rgba(255, 149, 0, 0.12);
-      border-left: 3px solid #ff9500;
-      border-radius: var(--border-radius);
-      font-size: 14px;
-      line-height: 1.7;
-      white-space: pre-wrap;
-      word-break: break-word;
-      color: var(--dark-text);
-    }
-
-    .detail-btn {
-      margin-top: 10px;
-      padding: 6px 16px;
-      font-size: 13px;
-      width: auto;
-      display: inline-flex;
-    }
-
-    .empty {
-      text-align: center;
-      color: var(--light-text);
-      padding: 40px 20px;
-      font-size: 15px;
-    }
-
-    .not-built {
-      color: var(--warning-color);
-      font-weight: 500;
-    }
-
-    /* 分页 */
-    .pagination {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 16px;
-      margin: 24px 0 10px;
-    }
-
-    .pagination button {
-      padding: 8px 18px;
-      font-size: 14px;
-      width: auto;
-    }
-
-    .pagination button:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    .page-info {
-      color: var(--light-text);
-      font-size: 14px;
-    }
-
-    .notification {
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: auto;
-      max-width: 80%;
-      padding: 10px 20px;
-      background: var(--notification-bg);
-      color: var(--notification-text);
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      z-index: 1000;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      transition: transform 0.3s ease-out;
-    }
-
-    .notification.show {
-      display: flex;
-    }
-
-    .notification.success {
-      border-left: 4px solid var(--success-color);
-    }
-
-    .notification.error {
-      border-left: 4px solid var(--warning-color);
-    }
-
-    @media (max-width: 768px) {
-      .container {
-        padding: 20px;
-        margin: 15px;
-      }
-
-      .theme-toggle-container {
-        top: 10px;
-        right: 10px;
-        padding: 3px 10px;
-      }
-
-      .filters {
-        grid-template-columns: 1fr;
-      }
-    }
-  </style>
-</head>
-
-<body>
-  <!-- 主题切换 -->
-  <div class="theme-toggle-container">
-    <span class="theme-label">主题:</span>
-    <label class="theme-switch">
-      <input type="checkbox" id="themeToggle" />
-      <span class="slider">
-        <span class="slider-icons">
-          <span>☀️</span>
-          <span>🌙</span>
-        </span>
-      </span>
-    </label>
-  </div>
+{% block content %}
   <div class="container">
     <div class="page-header">
       <h1>分类题库</h1>
       <p>GAOKAO-Bench 全量高考题，供检索与组卷</p>
-      <a href="/" class="batch-entry">前往单图批改</a>
-      <a href="/batch" class="batch-entry" style="margin-left: 10px">前往批量批改</a>
-      <a href="/guide" class="batch-entry" style="margin-left: 10px">使用教程</a>
     </div>
 
     <div class="filters">
@@ -500,294 +246,260 @@
     <div class="result-info" id="resultInfo"></div>
     <div class="result-list" id="resultList"></div>
 
-    <div class="pagination" id="pagination">
+    <div class="pagination" id="pagination" style="display: none">
       <button type="button" id="prevBtn">上一页</button>
       <span class="page-info" id="pageInfo"></span>
       <button type="button" id="nextBtn">下一页</button>
     </div>
   </div>
-  <div class="notification" id="notification">
-    <div id="notificationMessage"></div>
-  </div>
-  <script>
-    const PAGE_SIZE = 10;
-    const NOT_BUILT_MSG = "题库未构建，请先运行 scripts/build_question_bank.py";
-    let currentPage = 1;
-    let totalItems = 0;
+{% endblock %}
 
-    function escapeHtml(value) {
-      return String(value)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
-    }
+{% block scripts %}
+<script>
+  const PAGE_SIZE = 10;
+  const NOT_BUILT_MSG = "题库未构建，请先运行 scripts/build_question_bank.py";
+  let currentPage = 1;
+  let totalItems = 0;
 
-    function showNotification(message, type = "success") {
-      const notification = document.getElementById("notification");
-      const notificationMessage = document.getElementById(
-        "notificationMessage"
-      );
-      notification.className = "notification";
-      notification.classList.add(type);
-      notificationMessage.textContent = message;
-      notification.style.display = "flex";
-      setTimeout(() => {
-        notification.style.display = "none";
-      }, 3000);
-    }
+  function renderNotBuilt() {
+    document.getElementById("resultInfo").textContent = "";
+    document.getElementById("resultList").innerHTML =
+      `<div class="empty not-built">${NOT_BUILT_MSG}</div>`;
+    document.getElementById("pagination").style.display = "none";
+  }
 
-    function renderNotBuilt() {
-      document.getElementById("resultInfo").textContent = "";
-      document.getElementById("resultList").innerHTML =
-        `<div class="empty not-built">${NOT_BUILT_MSG}</div>`;
-      document.getElementById("pagination").style.display = "none";
-    }
+  // 填充单个下拉框：value 用原文，text 显示 value 与 count
+  function fillSelect(selectId, items, labelFn) {
+    const select = document.getElementById(selectId);
+    (items || []).forEach((item) => {
+      const option = document.createElement("option");
+      option.value = item.value;
+      option.textContent = labelFn ? labelFn(item) : `${item.value} (${item.count})`;
+      select.appendChild(option);
+    });
+  }
 
-    // 填充单个下拉框：value 用原文，text 显示 value 与 count
-    function fillSelect(selectId, items, labelFn) {
-      const select = document.getElementById(selectId);
-      (items || []).forEach((item) => {
-        const option = document.createElement("option");
-        option.value = item.value;
-        option.textContent = labelFn ? labelFn(item) : `${item.value} (${item.count})`;
-        select.appendChild(option);
-      });
-    }
-
-    // 初始化筛选选项：从 facets 接口拉取各维度分布
-    async function loadFacets() {
-      try {
-        const response = await fetch('/api/bank/facets');
-        if (response.status === 503) {
-          renderNotBuilt();
-          return;
-        }
-        if (!response.ok) {
-          showNotification("加载筛选选项失败，请重试", "error");
-          return;
-        }
-        const data = await response.json();
-        fillSelect("subject", data.subjects);
-        fillSelect("qtype", data.qtypes);
-        fillSelect("difficulty", data.difficulties);
-        const sourceTypeLabel = {
-          subjective: "主观题",
-          objective: "客观题",
-        };
-        fillSelect(
-          "sourceType",
-          data.source_types,
-          (item) => `${sourceTypeLabel[item.value] || item.value} (${item.count})`
-        );
-      } catch (error) {
-        showNotification("加载筛选选项失败，请重试", "error");
-      }
-    }
-
-    function buildSearchParams() {
-      const params = new URLSearchParams();
-      const subject = document.getElementById("subject").value;
-      const qtype = document.getElementById("qtype").value;
-      const difficulty = document.getElementById("difficulty").value;
-      const sourceType = document.getElementById("sourceType").value;
-      const year = document.getElementById("year").value.trim();
-      const keyword = document.getElementById("keyword").value.trim();
-      if (subject) {
-        params.set("subject", subject);
-      }
-      if (qtype) {
-        params.set("qtype", qtype);
-      }
-      if (difficulty) {
-        params.set("difficulty", difficulty);
-      }
-      if (sourceType) {
-        params.set("source_type", sourceType);
-      }
-      if (year) {
-        params.set("year", year);
-      }
-      if (keyword) {
-        params.set("q", keyword);
-      }
-      params.set("limit", String(PAGE_SIZE));
-      params.set("offset", String((currentPage - 1) * PAGE_SIZE));
-      return params;
-    }
-
-    function renderCard(item) {
-      return `
-        <div class="result-card" data-qid="${escapeHtml(item.qid)}">
-          <div class="q-question">${escapeHtml(item.question)}</div>
-          <div class="q-tags">
-            <span class="tag tag-subject">${escapeHtml(item.subject)}</span>
-            <span class="tag tag-qtype">${escapeHtml(item.qtype)}</span>
-            <span class="tag tag-difficulty">${escapeHtml(item.difficulty)}</span>
-            <span class="tag tag-year">${escapeHtml(item.year)}年</span>
-            <span class="tag tag-region">${escapeHtml(item.region)}</span>
-            <span class="tag tag-score">${escapeHtml(item.score)} 分</span>
-          </div>
-          <details class="q-answer">
-            <summary>答案</summary>
-            <div class="q-answer-content"></div>
-          </details>
-          <div class="q-analysis" style="display: none"></div>
-          <button type="button" class="detail-btn">查看解析</button>
-        </div>`;
-    }
-
-    function renderResults(items) {
-      const info = document.getElementById("resultInfo");
-      const list = document.getElementById("resultList");
-      document.getElementById("pagination").style.display = "flex";
-      if (!items || items.length === 0) {
-        info.textContent = "共 0 条";
-        list.innerHTML = `<div class="empty">未找到匹配题目</div>`;
+  // 初始化筛选选项：从 facets 接口拉取各维度分布
+  async function loadFacets() {
+    try {
+      const response = await fetch('/api/bank/facets');
+      if (response.status === 503) {
+        renderNotBuilt();
         return;
       }
-      info.textContent = `共 ${totalItems} 条`;
-      list.innerHTML = items.map(renderCard).join("");
+      if (!response.ok) {
+        showNotification("加载筛选选项失败，请重试", "error");
+        return;
+      }
+      const data = await response.json();
+      fillSelect("subject", data.subjects);
+      fillSelect("qtype", data.qtypes);
+      fillSelect("difficulty", data.difficulties);
+      const sourceTypeLabel = {
+        subjective: "主观题",
+        objective: "客观题",
+      };
+      fillSelect(
+        "sourceType",
+        data.source_types,
+        (item) => `${sourceTypeLabel[item.value] || item.value} (${item.count})`
+      );
+    } catch (error) {
+      showNotification("加载筛选选项失败，请重试", "error");
     }
+  }
 
-    function renderPagination() {
-      const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
-      document.getElementById("prevBtn").disabled = currentPage <= 1;
-      document.getElementById("nextBtn").disabled = currentPage >= totalPages;
-      document.getElementById("pageInfo").textContent = `第 ${currentPage} / ${totalPages} 页`;
+  function buildSearchParams() {
+    const params = new URLSearchParams();
+    const subject = document.getElementById("subject").value;
+    const qtype = document.getElementById("qtype").value;
+    const difficulty = document.getElementById("difficulty").value;
+    const sourceType = document.getElementById("sourceType").value;
+    const year = document.getElementById("year").value.trim();
+    const keyword = document.getElementById("keyword").value.trim();
+    if (subject) {
+      params.set("subject", subject);
     }
+    if (qtype) {
+      params.set("qtype", qtype);
+    }
+    if (difficulty) {
+      params.set("difficulty", difficulty);
+    }
+    if (sourceType) {
+      params.set("source_type", sourceType);
+    }
+    if (year) {
+      params.set("year", year);
+    }
+    if (keyword) {
+      params.set("q", keyword);
+    }
+    params.set("limit", String(PAGE_SIZE));
+    params.set("offset", String((currentPage - 1) * PAGE_SIZE));
+    return params;
+  }
 
-    async function doSearch() {
-      const params = buildSearchParams();
-      try {
-        const response = await fetch(`/api/bank/search?${params.toString()}`);
-        if (response.status === 503) {
-          renderNotBuilt();
-          return;
-        }
-        if (!response.ok) {
-          showNotification("检索失败，请重试", "error");
-          return;
-        }
-        const data = await response.json();
-        totalItems = data.total || 0;
-        renderResults(data.items);
-        renderPagination();
-      } catch (error) {
+  function renderCard(item) {
+    return `
+      <div class="result-card" data-qid="${escapeHtml(item.qid)}">
+        <div class="q-question">${escapeHtml(item.question)}</div>
+        <div class="q-tags">
+          <span class="tag tag-subject">${escapeHtml(item.subject)}</span>
+          <span class="tag tag-qtype">${escapeHtml(item.qtype)}</span>
+          <span class="tag tag-difficulty">${escapeHtml(item.difficulty)}</span>
+          <span class="tag tag-year">${escapeHtml(item.year)}年</span>
+          <span class="tag tag-region">${escapeHtml(item.region)}</span>
+          <span class="tag tag-score">${escapeHtml(item.score)} 分</span>
+        </div>
+        <details class="q-answer">
+          <summary>答案</summary>
+          <div class="q-answer-content"></div>
+        </details>
+        <div class="q-analysis" style="display: none"></div>
+        <button type="button" class="detail-btn">查看解析</button>
+      </div>`;
+  }
+
+  // 答案折叠面板与“查看解析”共用单一加载机制：未加载时展开显示占位
+  function renderResults(items) {
+    const info = document.getElementById("resultInfo");
+    const list = document.getElementById("resultList");
+    const pagination = document.getElementById("pagination");
+    if (!items || items.length === 0) {
+      info.textContent = "共 0 条";
+      list.innerHTML = `<div class="empty">未找到匹配题目</div>`;
+      pagination.style.display = "none";
+      return;
+    }
+    info.textContent = `共 ${totalItems} 条`;
+    list.innerHTML = items.map(renderCard).join("");
+    pagination.style.display = "flex";
+    bindAnswerToggle();
+  }
+
+  function renderPagination() {
+    const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+    document.getElementById("prevBtn").disabled = currentPage <= 1;
+    document.getElementById("nextBtn").disabled = currentPage >= totalPages;
+    document.getElementById("pageInfo").textContent = `第 ${currentPage} / ${totalPages} 页`;
+  }
+
+  async function doSearch() {
+    const params = buildSearchParams();
+    try {
+      const response = await fetch(`/api/bank/search?${params.toString()}`);
+      if (response.status === 503) {
+        renderNotBuilt();
+        return;
+      }
+      if (!response.ok) {
         showNotification("检索失败，请重试", "error");
+        return;
+      }
+      const data = await response.json();
+      totalItems = data.total || 0;
+      renderResults(data.items);
+      renderPagination();
+    } catch (error) {
+      showNotification("检索失败，请重试", "error");
+    }
+  }
+
+  function resetFilters() {
+    document.getElementById("subject").value = "";
+    document.getElementById("qtype").value = "";
+    document.getElementById("difficulty").value = "";
+    document.getElementById("sourceType").value = "";
+    document.getElementById("year").value = "";
+    document.getElementById("keyword").value = "";
+    currentPage = 1;
+    doSearch();
+  }
+
+  // 按需加载单题完整详情（含答案与解析），缓存已加载状态
+  async function loadDetail(card) {
+    const qid = card.dataset.qid;
+    if (card.dataset.loaded) {
+      return;
+    }
+    try {
+      const response = await fetch(`/api/bank/questions/${encodeURIComponent(qid)}`);
+      if (!response.ok) {
+        showNotification("加载解析失败，请重试", "error");
+        return;
+      }
+      const detail = await response.json();
+      card.querySelector(".q-answer-content").textContent =
+        detail.answer || "暂无答案";
+      card.querySelector(".q-analysis").textContent =
+        `解析：${detail.analysis || "暂无解析"}`;
+      card.dataset.loaded = "1";
+    } catch (error) {
+      showNotification("加载解析失败，请重试", "error");
+    }
+  }
+
+  // “查看解析”按钮：先加载再切换解析显隐
+  async function toggleDetail(card) {
+    const analysis = card.querySelector(".q-analysis");
+    const btn = card.querySelector(".detail-btn");
+    if (!card.dataset.loaded) {
+      await loadDetail(card);
+      if (!card.dataset.loaded) {
+        return; // 加载失败保持收起
       }
     }
+    const showing = analysis.style.display === "block";
+    analysis.style.display = showing ? "none" : "block";
+    btn.textContent = showing ? "查看解析" : "收起解析";
+  }
 
-    function resetFilters() {
-      document.getElementById("subject").value = "";
-      document.getElementById("qtype").value = "";
-      document.getElementById("difficulty").value = "";
-      document.getElementById("sourceType").value = "";
-      document.getElementById("year").value = "";
-      document.getElementById("keyword").value = "";
+  // 答案折叠面板打开时触发同一加载机制，未加载先显示占位
+  function bindAnswerToggle() {
+    document.querySelectorAll("#resultList .q-answer").forEach((details) => {
+      details.addEventListener("toggle", () => {
+        if (details.open) {
+          const card = details.closest(".result-card");
+          const content = details.querySelector(".q-answer-content");
+          if (!card.dataset.loaded) {
+            content.textContent = "加载中…";
+            loadDetail(card);
+          }
+        }
+      });
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    document.getElementById("searchBtn").addEventListener("click", () => {
       currentPage = 1;
       doSearch();
-    }
-
-    // 按需加载单题完整详情（含答案与解析）
-    async function toggleDetail(card) {
-      const qid = card.dataset.qid;
-      const analysis = card.querySelector(".q-analysis");
-      const btn = card.querySelector(".detail-btn");
-      if (!card.dataset.loaded) {
-        try {
-          const response = await fetch(`/api/bank/questions/${encodeURIComponent(qid)}`);
-          if (!response.ok) {
-            showNotification("加载解析失败，请重试", "error");
-            return;
-          }
-          const detail = await response.json();
-          card.querySelector(".q-answer-content").textContent =
-            detail.answer || "暂无答案";
-          analysis.textContent = `解析：${detail.analysis || "暂无解析"}`;
-          card.dataset.loaded = "1";
-        } catch (error) {
-          showNotification("加载解析失败，请重试", "error");
-          return;
-        }
-      }
-      const showing = analysis.style.display === "block";
-      analysis.style.display = showing ? "none" : "block";
-      btn.textContent = showing ? "查看解析" : "收起解析";
-    }
-
-    document.addEventListener("DOMContentLoaded", function () {
-      const themeToggle = document.getElementById("themeToggle");
-      const savedTheme = localStorage.getItem("theme");
-      const prefersDarkScheme = window.matchMedia(
-        "(prefers-color-scheme: dark)"
-      ).matches;
-      if (
-        savedTheme === "dark" ||
-        (savedTheme === null && prefersDarkScheme)
-      ) {
-        document.documentElement.setAttribute("data-theme", "dark");
-        themeToggle.checked = true;
-      } else {
-        document.documentElement.setAttribute("data-theme", "light");
-        themeToggle.checked = false;
-      }
-      themeToggle.addEventListener("change", function () {
-        if (this.checked) {
-          document.documentElement.setAttribute("data-theme", "dark");
-          localStorage.setItem("theme", "dark");
-          showNotification("已切换到深色主题", "success");
-        } else {
-          document.documentElement.setAttribute("data-theme", "light");
-          localStorage.setItem("theme", "light");
-          showNotification("已切换到浅色主题", "success");
-        }
-      });
-      window
-        .matchMedia("(prefers-color-scheme: dark)")
-        .addEventListener("change", (e) => {
-          if (!localStorage.getItem("theme")) {
-            const newTheme = e.matches ? "dark" : "light";
-            document.documentElement.setAttribute("data-theme", newTheme);
-            themeToggle.checked = e.matches;
-            showNotification(
-              `已根据系统设置切换到${e.matches ? "深色" : "浅色"}主题`,
-              "success"
-            );
-          }
-        });
-
-      document.getElementById("searchBtn").addEventListener("click", () => {
-        currentPage = 1;
-        doSearch();
-      });
-      document.getElementById("resetBtn").addEventListener("click", resetFilters);
-      document.getElementById("prevBtn").addEventListener("click", () => {
-        if (currentPage > 1) {
-          currentPage -= 1;
-          doSearch();
-        }
-      });
-      document.getElementById("nextBtn").addEventListener("click", () => {
-        const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
-        if (currentPage < totalPages) {
-          currentPage += 1;
-          doSearch();
-        }
-      });
-      document.getElementById("resultList").addEventListener("click", (e) => {
-        const btn = e.target.closest(".detail-btn");
-        if (!btn) {
-          return;
-        }
-        toggleDetail(btn.closest(".result-card"));
-      });
-
-      loadFacets();
-      doSearch();
     });
-  </script>
-</body>
+    document.getElementById("resetBtn").addEventListener("click", resetFilters);
+    document.getElementById("prevBtn").addEventListener("click", () => {
+      if (currentPage > 1) {
+        currentPage -= 1;
+        doSearch();
+      }
+    });
+    document.getElementById("nextBtn").addEventListener("click", () => {
+      const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+      if (currentPage < totalPages) {
+        currentPage += 1;
+        doSearch();
+      }
+    });
+    document.getElementById("resultList").addEventListener("click", (e) => {
+      const btn = e.target.closest(".detail-btn");
+      if (!btn) {
+        return;
+      }
+      toggleDetail(btn.closest(".result-card"));
+    });
 
-</html>
+    loadFacets();
+    doSearch();
+  });
+</script>
+{% endblock %}
