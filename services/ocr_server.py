@@ -14,7 +14,7 @@ import torch  # noqa: F401
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from services import ocr, region_ocr, segment
+from services import ocr_core, region_ocr, segment
 from utils import config
 
 app = FastAPI(title="OCR Service")
@@ -56,7 +56,7 @@ def recognize_texts(payload: _RecognizeTextsRequest) -> dict:
     """识别多张图片文字，返回按行拼接的文本列表；空列表短路返回空结果。"""
     if not payload.paths:
         return {"texts": []}
-    texts = ocr.recognize_texts(payload.paths, lang=payload.lang)
+    texts = ocr_core.recognize_texts(payload.paths, lang=payload.lang)
     return {"texts": texts}
 
 

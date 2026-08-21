@@ -12,8 +12,8 @@ from typing import Dict, Iterator, Tuple
 
 import pytest
 
-import services.ocr as ocr_module
-from services.ocr import recognize_texts
+import services.ocr_core as ocr_module
+from services.ocr_core import recognize_texts
 
 
 @contextmanager

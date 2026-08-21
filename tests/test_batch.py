@@ -86,9 +86,9 @@ def test_run_batch_job_segmented_writes_four_records(image_files, tmp_path, monk
     with patch("services.batch.recognize_texts",
                side_effect=_fake_recognize(image_files["reference"], "参考答案文本", "作业区域文本")), \
          patch("services.batch.default_store", return_value=store), \
-         patch("services.segment.segment_image", return_value=_SEGMENT_REGIONS), \
-         patch("services.segment.crop_region") as mock_crop, \
-         patch("services.region_ocr.regions_with_shared_enhance", return_value=None), \
+         patch("services.ocr.segment_image", return_value=_SEGMENT_REGIONS), \
+         patch("services.ocr.crop_region") as mock_crop, \
+         patch("services.ocr.regions_with_shared_enhance", return_value=None), \
          patch("services.batch_scoring.grade_batch", side_effect=[
              [_result(80.0), _result(90.0, method="online", routed=True)],
              [_result(70.0), _result(85.0)],
