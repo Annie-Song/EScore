@@ -72,16 +72,23 @@ def should_route(offline_score: float, routing: RoutingConfig | None = None) -> 
 
 
 def grade_answer(reference: str, answer: str, force_online: bool,
-                 quality_mode: str = DEFAULT_ROUTING_PRESET) -> dict:
+                 quality_mode: str = DEFAULT_ROUTING_PRESET,
+                 allow_online: bool = True) -> dict:
     """按在线/离线级联模式评分，返回结构化结果。
 
     quality_mode 选择路由预设（fast/quality），决定低分路由阈值；
     force_online 时预设仅用于校验不参与路由决策。
+    allow_online=False 时禁用在线路径：显式精排与自动路由均优雅降级为离线，
+    不抛错、不调 DeepSeek。
 
     返回字典包含 score（0-100 分数）、method（online/offline）、
     degraded（在线失败是否降级到离线）、routed（是否由离线粗筛自动路由精排）。
     """
     routing = resolve_preset(quality_mode)
+    if not allow_online:
+        # free 档无在线精排权限：显式精排与自动路由均不进在线路径，直接返回离线分
+        offline = offline_score(reference, answer)
+        return {"score": offline, "method": "offline", "degraded": False, "routed": False}
     if force_online:
         score = online_score(reference, answer)
         if score is not None:

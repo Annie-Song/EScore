@@ -27,10 +27,12 @@ def run_batch_job(
     enable_segment: bool,
     error_ai_mode: bool,
     quality_mode: str = config.DEFAULT_ROUTING_PRESET,
+    user_id: str = "",
 ) -> None:
     """执行一次批量批改任务：OCR 参考图、逐份分区评分、错因归类并落库。
 
     quality_mode 选择路由预设（fast/quality），决定批量评分时的低分路由阈值。
+    user_id 非空时把批次归属写入 user_batches；写入失败仅记日志，不阻断批改。
     全程不吞异常：任何未处理异常都在末尾统一捕获，标记任务失败后重新抛出，
     供后台线程的异常钩子记录完整堆栈。
     """
@@ -43,6 +45,13 @@ def run_batch_job(
         now_iso = datetime.now().isoformat()
         store.save_batch(batch_id, reference_text, BATCH_STATUS_RUNNING, 0, now_iso)
         batch_created = True
+        if user_id:
+            try:
+                from services.user_activity_store import default_user_activity_store
+
+                default_user_activity_store().link_batch(user_id, task_id, batch_id)
+            except Exception:
+                logger.exception("user_batches 映射写入失败，不影响批改")
 
         total = len(work_paths)
         for index, work_path in enumerate(work_paths, start=1):
