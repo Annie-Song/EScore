@@ -73,6 +73,16 @@ EMBEDDING_SERVICE_URL = os.environ.get(
     f"http://{EMBEDDING_SERVICE_HOST}:{EMBEDDING_SERVICE_PORT}",
 )
 
+# OCR 微服务监听地址：拆分独立 FastAPI 进程，客户端按此地址对接
+OCR_SERVICE_HOST = "127.0.0.1"
+OCR_SERVICE_PORT = 8766
+
+# OCR 微服务地址：默认本地监听地址，可用环境变量覆盖
+OCR_SERVICE_URL = os.environ.get(
+    "OCR_SERVICE_URL",
+    f"http://{OCR_SERVICE_HOST}:{OCR_SERVICE_PORT}",
+)
+
 # 错因 AI 归类：默认关闭（基础用户规则分档），落入模糊带才调 DeepSeek 细分类
 ERROR_AI_MODE = False
 ERROR_AI_BAND_LOW = 30.0  # 模糊带下界：低于此分一律规则分档
