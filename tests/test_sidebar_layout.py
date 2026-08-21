@@ -102,10 +102,15 @@ def test_结构_侧边栏含主题开关内容区通知容器(client: Any) -> No
 
 
 def test_游客态_显示登录注册链接(client: Any) -> None:
-    """无 session 时 GET / 渲染「登录 / 注册」链接（指向 /me），不渲染退出按钮。"""
+    """无 session 时 GET / 渲染 topbar 内「登录 / 注册」链接（指向 /login），不渲染退出按钮。"""
     _clear_session(client)
     html = _get_html(client, "/")
-    assert '<a class="nav-item" href="/me">登录 / 注册</a>' in html
+    # 登录 / 注册入口位于 main.main-content 的 topbar 内，而非 aside.sidebar 内
+    main_part = html.split('<main class="main-content">', 1)[1]
+    topbar_part = main_part.split('<header class="topbar">', 1)[1].split("</header>", 1)[0]
+    assert '<a class="nav-item" href="/login">登录 / 注册</a>' in topbar_part
+    sidebar_part = html.split('<aside class="sidebar">', 1)[1].split("</aside>", 1)[0]
+    assert '<a class="nav-item" href="/login">登录 / 注册</a>' not in sidebar_part
     assert "退出" not in html
 
 

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from flask import Blueprint, jsonify, request, session
+from flask import Blueprint, jsonify, render_template, request, session
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from services.user_store import default_user_store
@@ -89,3 +89,9 @@ def auth_me():
         return jsonify({"user": None}), 200
     user = default_user_store().get_user(user_id)
     return jsonify({"user": _user_public(user) if user else None}), 200
+
+
+@bp.route('/login', methods=['GET'])
+def auth_login_page():
+    """登录/注册页面。"""
+    return render_template('login.html')

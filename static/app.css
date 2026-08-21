@@ -863,3 +863,68 @@ progress:indeterminate::-webkit-progress-value {
     border-top: none;
   }
 }
+
+/* ============================================================
+   顶部用户区（F5 用户体系登录界面）
+   主内容区右上角顶部条，承接原 sidebar-footer 的 user-area。
+   追加于文件末尾以赢得层叠；不删除任何既有规则。
+   ============================================================ */
+
+.topbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 8px 0;
+  margin-bottom: 12px;
+  background: transparent;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.topbar .user-area {
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  padding-top: 0;
+  border-top: none;
+}
+
+.topbar .nav-item {
+  display: inline-block;
+  padding: 8px 18px;
+  background-color: var(--card-bg);
+  color: var(--primary-color);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 14px;
+  transition: background 0.3s, color 0.3s, border-color 0.3s;
+}
+
+.topbar .nav-item:hover {
+  background-color: var(--primary-color);
+  color: #fff;
+  border-color: var(--primary-color);
+}
+
+.topbar .logout-form {
+  margin: 0;
+}
+
+.topbar .user-logout {
+  display: inline-flex;
+  width: auto;
+  padding: 6px 14px;
+  font-size: 13px;
+}
+
+@media (max-width: 768px) {
+  .topbar {
+    padding: 6px 0;
+    margin-bottom: 8px;
+  }
+
+  .topbar .user-area {
+    gap: 10px;
+  }
+}
