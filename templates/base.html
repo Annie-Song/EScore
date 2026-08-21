@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,35 +7,53 @@
   <link rel="stylesheet" href="/static/app.css" />
   {% block styles %}{% endblock %}
 </head>
-
 <body>
-  <!-- 主题切换 -->
-  <div class="theme-toggle-container">
-    <span class="theme-label">主题:</span>
-    <label class="theme-switch">
-      <input type="checkbox" id="themeToggle" />
-      <span class="slider">
-        <span class="slider-icons">
-          <span>☀️</span>
-          <span>🌙</span>
-        </span>
-      </span>
-    </label>
-  </div>
-  <!-- 统一顶部导航：当前页高亮 -->
-  <nav class="top-nav">
-    <a href="/" class="nav-item{% if request.path == '/' %} active{% endif %}">首页</a>
-    <a href="/batch" class="nav-item{% if request.path == '/batch' %} active{% endif %}">批量批改</a>
-    <a href="/bank" class="nav-item{% if request.path == '/bank' %} active{% endif %}">分类题库</a>
-    <a href="/guide" class="nav-item{% if request.path == '/guide' %} active{% endif %}">使用教程</a>
-  </nav>
-  {% block content %}{% endblock %}
-  <!-- 通知提示条 -->
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-logo">📝</span>
+      <span class="brand-name">智能作业批改系统</span>
+    </div>
+    <nav class="top-nav">
+      <a href="/" class="nav-item{% if request.path == '/' %} active{% endif %}">首页</a>
+      <a href="/batch" class="nav-item{% if request.path == '/batch' %} active{% endif %}">批量批改</a>
+      <a href="/bank" class="nav-item{% if request.path == '/bank' %} active{% endif %}">分类题库</a>
+      <a href="/guide" class="nav-item{% if request.path == '/guide' %} active{% endif %}">使用教程</a>
+      <a href="/me" class="nav-item{% if request.path == '/me' %} active{% endif %}">个人主页</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="theme-toggle-container">
+        <span class="theme-label">主题:</span>
+        <label class="theme-switch">
+          <input type="checkbox" id="themeToggle" />
+          <span class="slider">
+            <span class="slider-icons">
+              <span>☀️</span>
+              <span>🌙</span>
+            </span>
+          </span>
+        </label>
+      </div>
+      <div class="user-area">
+        {% if session.get('user_id') %}
+          <span class="user-avatar">{{ (session.get('display_name') or '用')[0] }}</span>
+          <span class="user-name">{{ session.get('display_name') or session.get('username', '') }}</span>
+          <a class="user-link" href="/me">个人主页</a>
+          <form method="post" action="/api/auth/logout" class="logout-form">
+            <button type="submit" class="btn-secondary user-logout">退出</button>
+          </form>
+        {% else %}
+          <a class="nav-item" href="/me">登录 / 注册</a>
+        {% endif %}
+      </div>
+    </div>
+  </aside>
+  <main class="main-content">
+    {% block content %}{% endblock %}
+  </main>
   <div class="notification" id="notification">
     <div id="notificationMessage"></div>
   </div>
   <script src="/static/app.js"></script>
   {% block scripts %}{% endblock %}
 </body>
-
 </html>
