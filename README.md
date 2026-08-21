@@ -12,6 +12,7 @@
 | 错因归类 | 按分数规则分档（未作答/概念错误/要点遗漏/部分正确/掌握良好），可开启 AI 结构化归类并给出一句话原因 |
 | 分类题库 | 2811 道高考题（10 科目、14 题型）按确定性标签入库，支持科目/题型/难度/年份/关键词过滤检索 |
 | 持久化与统计 | 批改记录落 SQLite，可按题查看人数/平均分/最高/最低/及格率/未作答数，按错因查看分布，下载 HTML/Word 报告 |
+| 用户体系 | 注册/登录（Flask 签名会话，零新依赖）、个人主页（资料/批改记录/会员状态/个人卷库）、free/pro 会员门控、题库收藏，游客免登录使用 |
 
 ## 系统架构
 
@@ -31,6 +32,14 @@
 
 Embedding 服务负责句向量编码与语义相似度，OCR 服务负责 PaddleOCR 文字识别、Real-ESRGAN 低置信增强重识别与水平投影分区。两者均为独立 FastAPI 进程，主应用经 HTTP 客户端调用，接口契约不变、业务调用方零改动即可在进程内实现与远程调用间切换。模型加载错误、内存尖峰都被隔离在服务进程内，不拖垮 Web 主进程。
 
+## 用户体系
+
+面向学校/教师客户的身份与商业化能力。左侧 sidebar 导航含 5 入口（首页/批量批改/分类题库/使用教程/个人主页），登录态显示头像昵称与退出入口，游客显示"登录/注册"。注册登录基于 Flask 签名 session 加 werkzeug pbkdf2 口令哈希，零新依赖，密钥来自环境变量 `SECRET_KEY`。
+
+会员按 free/pro 两档功能门控，游客视为 free：批量批改需 pro（不足返 402 并提示升级），在线精排 free 自动降级为离线评分（状态码仍 200，核心评分始终可用）。演示账号运行 `python scripts/seed_demo_user.py` 后可用：demo/demo1234（教师 pro）与 admin/admin123（管理员 pro），免费用户可在注册页自助注册。
+
+个人主页 `/me` 四卡片区：会员状态（计划徽章与升级占位入口）、我的资料、我的批改记录（个人批量任务与每题均分）、我的卷库（从分类题库收藏的题目，作为后续组卷的数据底座）。批改记录按映射表归属，grades.db 原表不变。
+
 ## 技术栈
 
 | 层 | 技术 |
@@ -40,8 +49,9 @@ Embedding 服务负责句向量编码与语义相似度，OCR 服务负责 Paddl
 | OCR | PaddleOCR；Real-ESRGAN x4plus 低置信增强重识别 |
 | 语义匹配 | sentence-transformers 多语言 MiniLM-L12（384 维） |
 | 精排 | DeepSeek API（级联路由，双档预设） |
-| 存储 | SQLite（WAL，批改记录/统计/题库） |
-| 前端 | 原生 HTML/CSS/JS，响应式布局 + 明暗主题切换 |
+| 存储 | SQLite（WAL，批改记录/统计/题库/用户体系） |
+| 认证 | Flask 签名 session + werkzeug pbkdf2（零新依赖） |
+| 前端 | 原生 HTML/CSS/JS，响应式侧边导航 + 明暗主题切换 |
 
 ## 关键设计与量化成果
 
@@ -72,7 +82,7 @@ conda activate ggrade
 pip install -r requirements.txt
 ```
 
-关键版本说明：paddlepaddle 2.6.2 针对 numpy 1.x 编译，requirements.txt 已锁定 numpy==1.26.4，请勿升级到 numpy 2.x。复制 `.env.example` 为 `.env` 并填入 DeepSeek API Key；`.env` 可配置 `DEEPSEEK_API_KEY`、`FLASK_DEBUG`、`EMBEDDING_SERVICE_URL`、`OCR_SERVICE_URL`。
+关键版本说明：paddlepaddle 2.6.2 针对 numpy 1.x 编译，requirements.txt 已锁定 numpy==1.26.4，请勿升级到 numpy 2.x。复制 `.env.example` 为 `.env` 并填入 DeepSeek API Key；`.env` 可配置 `DEEPSEEK_API_KEY`、`FLASK_DEBUG`、`EMBEDDING_SERVICE_URL`、`OCR_SERVICE_URL`、`SECRET_KEY`（会话签名密钥，生产环境务必设置）。启动前可选运行 `python scripts/seed_demo_user.py` 播种演示账号（demo/demo1234、admin/admin123）。
 
 启动三个进程（同一 conda 环境，或双击 `run.bat`）：
 
@@ -91,7 +101,7 @@ python run.py
 
 ## 工程化
 
-单测 432 条，外部依赖（DeepSeek、OCR、向量嵌入）全部 mock、可离线独立运行，命名遵循 `test_功能_场景`。代码按 app/services/utils 分层组织，单个文件不超过约 200 行、模块级公开函数不超过 5 个，约束门禁脚本强制校验。迭代采用两层 Git 分支（版本分支 + 任务分支）与独立实现/测试 agent 分离的开发流程，业务代码由实现 agent 撰写、测试由独立 agent 撰写运行，避免自查自测。
+单测 524 条，外部依赖（DeepSeek、OCR、向量嵌入）全部 mock、可离线独立运行，命名遵循 `test_功能_场景`。代码按 app/services/utils 分层组织，单个文件不超过约 200 行、模块级公开函数不超过 5 个，约束门禁脚本强制校验。迭代采用两层 Git 分支（版本分支 + 任务分支）与独立实现/测试 agent 分离的开发流程，业务代码由实现 agent 撰写、测试由独立 agent 撰写运行，避免自查自测。
 
 ## 训练数据来源
 
