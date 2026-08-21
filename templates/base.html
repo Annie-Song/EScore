@@ -33,6 +33,10 @@
           </span>
         </label>
       </div>
+    </div>
+  </aside>
+  <main class="main-content">
+    <header class="topbar">
       <div class="user-area">
         {% if session.get('user_id') %}
           <span class="user-avatar">{{ (session.get('display_name') or '用')[0] }}</span>
@@ -42,12 +46,10 @@
             <button type="submit" class="btn-secondary user-logout">退出</button>
           </form>
         {% else %}
-          <a class="nav-item" href="/me">登录 / 注册</a>
+          <a class="nav-item" href="/login">登录 / 注册</a>
         {% endif %}
       </div>
-    </div>
-  </aside>
-  <main class="main-content">
+    </header>
     {% block content %}{% endblock %}
   </main>
   <div class="notification" id="notification">
