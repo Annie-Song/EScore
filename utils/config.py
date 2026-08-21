@@ -100,3 +100,8 @@ QUESTION_BANK_OBJECTIVE_DIR = 'Data/Objective_Questions'
 QUESTION_BANK_GPT4_OBJ_DIR = 'Results/gpt_4_0314_obj'
 QUESTION_BANK_DIFFICULTY_ADVANCED_MIN = 12  # 主观题分值分档：>=此值为进阶
 QUESTION_BANK_DIFFICULTY_BASIC_MAX = 6      # 主观题分值分档：<此值为基础，其余中等
+
+# 会话签名密钥：生产必须用环境变量覆盖
+SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-prod")
+# 用户体系 SQLite（users/user_batches/user_favorites 三表）
+USER_DB_PATH = './output/users.db'
