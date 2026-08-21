@@ -1,17 +1,70 @@
-# 试卷题目打分器（智能作业批改系统）
+# 智能作业批改系统（Grade-your-homework）
 
-基于多模态 AI 的中英文作业自动批改系统：上传学生作业图片与参考答案，自动完成 OCR 文字提取与语义评分。
+基于多模态 AI 的中英文作业自动批改系统。教师上传学生作业图片与参考答案，系统自动完成 OCR 文字提取、语义评分与批改报告生成。核心工作流有两条：单份快速批改（上传两图，即时识别、评分、下载报告）与大批量离线批改（一次上传一份参考图与多份作业图，异步逐份识别评分，产出每题得分明细与统计报告），并内置按科目/题型/难度检索的高考题题库作为数据底座。全部模型在单机 CPU（Windows）推理，无 GPU 依赖。
 
-## 拉取项目
+## 核心能力
+
+| 能力 | 说明 |
+| --- | --- |
+| 单图批改 | 上传作业图与参考答案图，OCR 提取文本，级联评分引擎打分，下载 HTML/Word 批改报告 |
+| 批量批改 | 一份参考图 + 多份作业图，异步后台线程逐份识别评分，前端轮询进度，长耗时批改不阻塞请求 |
+| 作业智能分区 | 一张图含多道题时按水平投影自动切分为独立区域，逐区域 OCR 与评分，一图多题分别打分 |
+| 错因归类 | 按分数规则分档（未作答/概念错误/要点遗漏/部分正确/掌握良好），可开启 AI 结构化归类并给出一句话原因 |
+| 分类题库 | 2811 道高考题（10 科目、14 题型）按确定性标签入库，支持科目/题型/难度/年份/关键词过滤检索 |
+| 持久化与统计 | 批改记录落 SQLite，可按题查看人数/平均分/最高/最低/及格率/未作答数，按错因查看分布，下载 HTML/Word 报告 |
+
+## 系统架构
+
+评分链路采用级联两阶段：先由离线向量嵌入（sentence-transformers 多语言 MiniLM）粗筛，离线分低于阈值或落入边界带时自动路由 DeepSeek 精排，在精度与成本之间做平衡；在线评分失败时自动降级为离线，并在结果中通过 degraded 字段标记。
+
+系统按微服务拆分，模型全部收敛到独立进程，主应用进程不持有任何模型：
 
 ```
-git clone git@github.com:yeteye/Grade-your-homework.git
-cd Grade-your-homework
+┌────────────────────┐   HTTP    ┌─────────────────────────────┐
+│   Flask 主应用       │ ────────▶ │  Embedding 微服务 :8765      │
+│   路由 / 业务编排      │           │  MiniLM 语义粗筛 / 参考缓存    │
+│   批量任务调度         │   HTTP    ├─────────────────────────────┤
+│   上传/落库/报告生成    │ ────────▶ │  OCR 微服务 :8766            │
+└────────────────────┘           │  PaddleOCR / ESRGAN / 分区    │
+                                 └─────────────────────────────┘
 ```
 
-## 环境配置
+Embedding 服务负责句向量编码与语义相似度，OCR 服务负责 PaddleOCR 文字识别、Real-ESRGAN 低置信增强重识别与水平投影分区。两者均为独立 FastAPI 进程，主应用经 HTTP 客户端调用，接口契约不变、业务调用方零改动即可在进程内实现与远程调用间切换。模型加载错误、内存尖峰都被隔离在服务进程内，不拖垮 Web 主进程。
 
-推荐 Python 3.9。使用 conda 创建独立环境并安装依赖：
+## 技术栈
+
+| 层 | 技术 |
+| --- | --- |
+| 主应用 | Flask + Jinja2（app 工厂 + Blueprint 分层） |
+| 微服务 | FastAPI + Uvicorn（Embedding、OCR 两个独立进程） |
+| OCR | PaddleOCR；Real-ESRGAN x4plus 低置信增强重识别 |
+| 语义匹配 | sentence-transformers 多语言 MiniLM-L12（384 维） |
+| 精排 | DeepSeek API（级联路由，双档预设） |
+| 存储 | SQLite（WAL，批改记录/统计/题库） |
+| 前端 | 原生 HTML/CSS/JS，响应式布局 + 明暗主题切换 |
+
+## 关键设计与量化成果
+
+OCR 识别做了按语言单例缓存加双重检查锁的懒加载，PaddleOCR 实例化从每个请求重建改为复用，稳态识别延迟从 1.71s 降到 0.57s。单例缓存随后暴露了共享实例不线程安全的问题，对推理加模块级锁串行化后，并发 /ocr 成功率从 50% 修复到 12/12，同时用吞吐换回了正确性。
+
+批量批改先解决性能再解决交互。逐对评分在 N=20 时耗 466ms，改为参考答案嵌入预计算缓存（同一参考对 N 份作业只编码一次，满 256 条整体清空保证内存有界）加答案批量编码后降到 98ms，收益随作业数放大。大批量上传从同步阻塞改为提交即返回任务 ID、后台线程执行、前端轮询进度，单份批改约 2.0s，使十万级规模在"不阻塞请求 + 记录落库"层面成立。
+
+| 优化项 | 量化结果 |
+| --- | --- |
+| OCR 单例缓存 | 识别延迟 1.71s → 0.57s（约 3 倍） |
+| OCR 并发竞态修复 | 成功率 50% → 12/12 |
+| 向量嵌入服务化 | 批量相似度 N=20 98ms → 72.5ms（参考缓存随模型迁服务端），主应用进程内存释放 |
+| 向量预计算 | 逐对 466ms → 批处理 98ms（4.7x，N=20） |
+| 单份批改 | 约 2.0s/份（真实作业，不触发增强） |
+| 分区整图增强去重 | Real-ESRGAN 增强次数 N 次 → 1 次，9 区域作业约 542s → 约 90-120s（约 4.5x） |
+
+评分精度用自建评测集量化。用 GAOKAO-Bench 60 道中文主观题（含标准答案）加 DeepSeek 构造优/中/差三档作答共 180 条建立评测集，实测 MiniLM 对中文主观题优/差二分类 AUC 0.731，证明"语义相似"不等于"答案质量"，MiniLM 只适合粗筛，中文主观题的高质量评判仍需 DeepSeek 精排兜底。修复三档构造的词汇重叠混淆后，档位单调性恢复、Spearman 0.381 → 0.505、优/差 AUC 0.807，综合多指标判别 AUC 达 0.947。基于评测集把路由策略做成双档预设由使用者运行时自选：fast 档差档作答捕获率 23.3%、总路由率 11.7%（低成本），quality 档捕获率 78.3%、总路由率 50.6%（高质但调用成本约 4.3 倍），运营点权衡量化写进界面与可复用扫描工具。
+
+低质量作业图片的增强也做了结构性优化。一图多题分区后每个低置信区域各自触发一次 Real-ESRGAN 超分，成本随区域数线性放大，改为整图增强一次、各区域从增强图按放大比例裁剪识别，增强从 N 次并为 1 次，任何异常降级回原路径保证任务不失败。
+
+## 快速上手
+
+推荐 Python 3.9，用 conda 创建独立环境安装依赖：
 
 ```
 conda create -n ggrade python=3.9 -y
@@ -19,90 +72,27 @@ conda activate ggrade
 pip install -r requirements.txt
 ```
 
-关键版本说明：paddlepaddle 2.6.2 针对 numpy 1.x 编译，requirements.txt 已锁定 numpy==1.26.4，请勿升级到 numpy 2.x，否则会出现 ABI 不兼容错误。
+关键版本说明：paddlepaddle 2.6.2 针对 numpy 1.x 编译，requirements.txt 已锁定 numpy==1.26.4，请勿升级到 numpy 2.x。复制 `.env.example` 为 `.env` 并填入 DeepSeek API Key；`.env` 可配置 `DEEPSEEK_API_KEY`、`FLASK_DEBUG`、`EMBEDDING_SERVICE_URL`、`OCR_SERVICE_URL`。
 
-## 配置密钥
-
-复制 `.env.example` 为 `.env` 并填入 DeepSeek API Key：
+启动三个进程（同一 conda 环境，或双击 `run.bat`）：
 
 ```
-cp .env.example .env   # Windows: copy .env.example .env
-```
-
-`.env` 中可配置项：
-
-| 变量 | 说明 |
-| --- | --- |
-| DEEPSEEK_API_KEY | DeepSeek API 密钥（在线评分必需） |
-| FLASK_DEBUG | 调试模式开关，生产环境保持 0 |
-| EMBEDDING_SERVICE_URL | 向量嵌入微服务地址，默认 http://127.0.0.1:8765 |
-
-## 运行
-
-2.5.0 起向量嵌入已拆为独立 FastAPI 微服务，需要先启动嵌入服务，再启动主应用（同一 conda 环境两个进程）：
-
-```
-# 终端 1：启动向量嵌入微服务（默认监听 127.0.0.1:8765）
+# 终端 1：向量嵌入微服务（默认 127.0.0.1:8765）
 python -m services.embedding_server
 
-# 终端 2：启动主应用
+# 终端 2：OCR 微服务（默认 127.0.0.1:8766）
+python -m services.ocr_server
+
+# 终端 3：主应用
 python run.py
 ```
 
-或双击 `run.bat`。启动后浏览器访问 http://127.0.0.1:5000/ 。嵌入服务未启动时，离线评分会明确报错并提示启动命令（fail-fast，不静默降级）；`EMBEDDING_SERVICE_URL` 环境变量可指向其他主机上的嵌入服务。
+浏览器访问 http://127.0.0.1:5000/ 即可使用。微服务未启动时离线评分与 OCR 会明确报错并提示启动命令（fail-fast，不静默降级），服务地址可用环境变量指向其他主机。
 
-## 测试
+## 工程化
 
-```
-pytest
-```
-
-或 `python -m pytest`。测试不依赖网络与模型，DeepSeek、OCR 与向量嵌入均已 mock，可离线运行。
-
-## 架构
-
-系统采用级联两阶段评分：先由离线向量嵌入（sentence-transformers 多语言 MiniLM）粗筛，离线分低于阈值（默认 60 分）或落入边界带时自动路由 DeepSeek 精排。前端勾选「强制 DeepSeek 精排」则跳过粗筛、每次都用 DeepSeek。
-
-2.5.0 起向量嵌入拆为独立 FastAPI 微服务（services/embedding_server.py，进程隔离，避免在单体里堆模型），主应用经 HTTP 客户端（services/embedding.py）调用，接口契约不变、业务调用方零改动。嵌入模型与参考答案缓存只在服务进程常驻，主应用进程内存与启动速度得到释放。
-
-| 模式 | 评分引擎 | 适用场景 |
-| --- | --- | --- |
-| 自动级联（默认） | 离线粗筛 + 低置信度自动转 DeepSeek 精排 | 精度与成本平衡 |
-| 强制在线 | DeepSeek 大模型精排 | 高精度评分 |
-
-路由策略与阈值在 utils/config.py 配置：ROUTING_MODE 取 threshold（低分路由）/ band（中段边界带）/ off（关闭路由），对应 LOW_THRESHOLD、BAND_LOW、BAND_HIGH。在线评分失败时自动降级为离线评分，并在结果中通过 degraded 字段标记。
-
-2.7.0 起路由支持双档预设（ROUTING_PRESETS），评分时由使用者在 fast 与 quality 之间自选，前端单文本与批量页均提供下拉框，请求体携带 quality 字段（`fast` 默认 / `quality`）。fast 沿用低分阈值 60（差档作答路由率约 23%，总路由率约 12%，低成本）；quality 将阈值提高到 80（差档作答路由率约 78%，总路由率约 51%，高质但 DeepSeek 调用成本上升）。跨档的运营点权衡可用 `python scripts/sweep_routing.py` 扫描，支持自定义阈值与 band 区间。
-
-离线评分首次调用会从 HuggingFace 下载多语言嵌入模型（约 118MB），需联网一次。之后模型已缓存时加载走本地快照路径，完全离线、不发网络请求。国内访问 huggingface.co 超时时，在 `.env` 中设 `HF_ENDPOINT=https://hf-mirror.com` 走镜像。
-
-## ESRGAN 图像增强（备选）
-
-当上传的作业图片质量较低、首次 OCR 识别的平均置信度低于阈值（默认 0.6，见 `utils/config.py` 的 `ENHANCE_CONFIDENCE_THRESHOLD`）时，系统会自动调用 ESRGAN 对图片做 4x 超分并重新识别；若增强后的识别置信度更高则采用增强结果，否则维持原识别文本。该功能为备选增强，不影响 OCR 主流程。
-
-增强使用 Real-ESRGAN 官方预训练权重 `RealESRGAN_x4plus.pth`（real-world 退化训练，对模糊/噪点/JPEG 压缩的作业图片效果优于原版 ESRGAN）。该文件不在代码仓库内，需从 [Real-ESRGAN GitHub Releases](https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth) 下载，放入 `ESRGAN/models/` 目录。国内直连 GitHub Releases 超时时，可用代理镜像 `https://gh-proxy.com/https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth`（`curl -C -` 支持断点续传）。权重文件缺失或加载失败时，系统自动降级为普通识别，仅在日志中记录一次警告，OCR 主流程不受影响。
-
-注意增强在 CPU 上运行较慢（每张图需数秒到数十秒），且仅低置信度图片会触发；如需完全跳过增强，可删除权重文件或将 `ENHANCE_CONFIDENCE_THRESHOLD` 调低。
-
-## 批量批改与统计报告（2.4.0）
-
-首页点击「前往批量批改页」进入 `/batch`，一次上传一份参考答案图片与多份作业图片，系统自动逐份识别并评分，产出每题得分明细与统计报告。
-
-- **异步批改**：提交即返回任务 ID，后台线程执行，前端轮询进度，长耗时批改不阻塞请求。
-- **作业智能分区**：勾选「智能分区」后，对一张图含多道题的作业先用水平投影按题号答案切分为独立区域，逐区域 OCR 与评分，实现一图多题分别打分。
-- **错因归类**：默认按分数规则分档（未作答/概念错误/要点遗漏/部分正确/掌握良好）；进阶可开启「AI 错因归类」，对 30-85 分模糊带的题目调 DeepSeek 结构化归类并给出一句话原因。
-- **持久化与统计**：批改记录落 SQLite（`output/grades.db`），可按题查看人数/平均分/最高/最低/及格率/未作答数，按错因查看分布，并下载 HTML/Word 统计报告。
-
-批量评分对参考答案嵌入做预计算缓存，同一参考对多份作业只编码一次参考向量，全部答案一次批量编码（N=20 时较逐对评分快约 4.7 倍）。
-
-## 分类题库（2.11.0）
-
-首页/批量页点击「分类题库」进入 `/bank`，可浏览检索 GAOKAO-Bench 全量高考题（2811 题：主观 1030 + 客观 1781，10 科目、14 题型），按科目/题型/难度/题目类型/年份/关键词过滤，作为后续组卷（RAG）的数据底座。
-
-- **数据来源**：需先自行下载 [GAOKAO-Bench](https://github.com/OpenLMLab/GAOKAO-Bench) 到 `data/gaokao/`（含 `Data/Subjective_Questions`、`Data/Objective_Questions` 与 `Results/gpt_4_0314_obj` 客观题作答结果）。
-- **构建**：`python scripts/build_question_bank.py`，全量入库 `output/question_bank.db`（确定性标签：科目/题型/难度/年级/年份/地区；客观题难度来自 gpt-4 作答对错，主观题用分值分档弱代理）。
-- **API**：`GET /api/bank/facets`（科目/题型/难度分布）、`GET /api/bank/search`（过滤 + 关键词 + 分页）、`GET /api/bank/questions/<qid>`（单题详情）。库未构建时接口返回 503 并提示运行构建脚本，页面有对应文案。
+单测 432 条，外部依赖（DeepSeek、OCR、向量嵌入）全部 mock、可离线独立运行，命名遵循 `test_功能_场景`。代码按 app/services/utils 分层组织，单个文件不超过约 200 行、模块级公开函数不超过 5 个，约束门禁脚本强制校验。迭代采用两层 Git 分支（版本分支 + 任务分支）与独立实现/测试 agent 分离的开发流程，业务代码由实现 agent 撰写、测试由独立 agent 撰写运行，避免自查自测。
 
 ## 训练数据来源
 
-图像增强实验使用 DIV2K 数据集：https://data.vision.ee.ethz.ch/cvl/DIV2K/
+图像增强实验使用 DIV2K 数据集：https://data.vision.ee.ethz.ch/cvl/DIV2K/ 。分类题库数据来自 GAOKAO-Bench：https://github.com/OpenLMLab/GAOKAO-Bench ，构建脚本为 `python scripts/build_question_bank.py`。
