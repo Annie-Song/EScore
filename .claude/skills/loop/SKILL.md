@@ -27,7 +27,7 @@ description: 执行一次完整迭代闭环（确定版本号→开版本分支�
 2. 从 main 开版本分支 version/x.y.z
 3. 冒烟检查（ggrade 环境）：python -c "from app import create_app"
 4. 读取上轮产物：迭代反馈表、bugLOG、上一版版本迭代报告
-5. 预检固定项（避免重复踩坑）：memory/ 已被 .gitignore 忽略，git add/commit 永不收录 memory/；交付前约束门禁脚本位于 scripts/check_constraints.py，Phase 2 步骤 12 必须通过；压测可复用脚本位于 scripts/bench_embedding.py，Phase 3 步骤 18 优先使用、不临时手写；外网可达性要逐端点实测（如 curl api.deepseek.com 探测）而非按历史推断，用于正确判断哪些步骤需用户 `!` 执行、哪些本会话可直接执行（v2.6.0 教训：github/huggingface 被阻断但 api.deepseek.com 可达，曾错误地把 DeepSeek 作答生成委托给用户）
+5. 预检固定项（避免重复踩坑）：memory/ 已被 .gitignore 忽略，git add/commit 永不收录 memory/；交付前约束门禁脚本位于 scripts/check_constraints.py，Phase 2 步骤 12 必须通过；压测可复用脚本位于 scripts/bench_embedding.py，Phase 3 步骤 18 优先使用、不临时手写；外网可达性要逐端点实测（如 curl api.deepseek.com 探测）而非按历史推断，用于正确判断哪些步骤需用户 `!` 执行、哪些本会话可直接执行（v2.6.0 教训：github/huggingface 被阻断但 api.deepseek.com 可达，曾错误地把 DeepSeek 作答生成委托给用户）；涉及在线评分（force_online/DeepSeek）的任务，Phase 0 用最小 chat 请求探测密钥有效性（401 即密钥失效需换 key，勿等到 Phase 3 联调才暴露，v2.11.0 教训）
 
 ## Phase 1 规划
 
