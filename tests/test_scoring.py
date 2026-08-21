@@ -47,6 +47,35 @@ def test_grade_answer_force_online_failure_falls_back_to_offline():
         assert result == {"score": 100.0, "method": "offline", "degraded": True, "routed": False}
 
 
+def test_grade_answer_allow_online_false_force_online_true_degrades_offline_no_deepseek():
+    """allow_online=False 且 force_online=True：即使离线分低到会触发路由也不调 DeepSeek。
+
+    强制降级离线应返回 method=offline degraded=False，get_points 绝不调用。
+    """
+    with patch("services.scoring.semantic_similarity", return_value=0.5), \
+         patch("services.scoring.get_points") as mock_points:
+        result = grade_answer("参考", "答案", True, allow_online=False)
+    assert result == {"score": 50.0, "method": "offline", "degraded": False, "routed": False}
+    mock_points.assert_not_called()
+
+
+def test_grade_answer_allow_online_true_force_online_true_uses_online():
+    """allow_online=True 且 force_online=True：走在线精排返回 online。"""
+    with patch("services.scoring.get_points", return_value=0.8):
+        result = grade_answer("参考", "答案", True, allow_online=True)
+    assert result == {"score": 80.0, "method": "online", "degraded": False, "routed": False}
+
+
+def test_grade_answer_allow_online_default_true_matches_explicit():
+    """allow_online 缺省为 True，与显式 True 行为一致（回归保障）。"""
+    with patch("services.scoring.get_points", return_value=0.8):
+        result_default = grade_answer("参考", "答案", True)
+    with patch("services.scoring.get_points", return_value=0.8):
+        result_explicit = grade_answer("参考", "答案", True, allow_online=True)
+    assert result_default == result_explicit == {"score": 80.0, "method": "online",
+                                                 "degraded": False, "routed": False}
+
+
 def test_grade_answer_auto_no_route_uses_offline_result():
     with patch("services.scoring.should_route", return_value=False), \
          patch("services.scoring.semantic_similarity", return_value=0.5):

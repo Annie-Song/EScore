@@ -10,12 +10,13 @@ from app import create_app
 class _SyncThread:
     """替代 threading.Thread 同步执行 target，避免异步竞态。"""
 
-    def __init__(self, target, args, daemon=None):
+    def __init__(self, target, args, kwargs=None, daemon=None):
         self._target = target
         self._args = args
+        self._kwargs = kwargs or {}
 
     def start(self):
-        self._target(*self._args)
+        self._target(*self._args, **self._kwargs)
 
 
 @pytest.fixture
@@ -25,6 +26,21 @@ def client():
     app.config["TESTING"] = True
     with app.test_client() as c:
         yield c
+
+
+@pytest.fixture
+def pro_client(client, monkeypatch):
+    """带 pro 档会话的客户端：session 写 user_id，current_user 返回 pro 档。"""
+    with client.session_transaction() as sess:
+        sess["user_id"] = "demo"
+        sess["display_name"] = "演示"
+        sess["role"] = "teacher"
+        sess["plan"] = "pro"
+    monkeypatch.setattr(
+        "services.auth.current_user",
+        lambda: {"id": "demo", "plan": "pro", "display_name": "演示"},
+    )
+    return client
 
 
 def _multipart(**form_fields):
@@ -53,18 +69,18 @@ def _run_post(client, **form_fields):
     return resp, mock_run
 
 
-def test_batch_grade_default_no_quality_passes_fast(client):
+def test_batch_grade_default_no_quality_passes_fast(pro_client):
     """缺省无 quality 表单字段 → run_batch_job 收到 quality='fast'。"""
-    resp, mock_run = _run_post(client)
+    resp, mock_run = _run_post(pro_client)
     assert resp.status_code == 202
     assert "task_id" in resp.get_json()
     mock_run.assert_called_once()
     assert mock_run.call_args.args[-1] == "fast"
 
 
-def test_batch_grade_quality_quality_passes_quality(client):
+def test_batch_grade_quality_quality_passes_quality(pro_client):
     """quality='quality' → run_batch_job 收到 quality='quality'。"""
-    resp, mock_run = _run_post(client, quality="quality")
+    resp, mock_run = _run_post(pro_client, quality="quality")
     assert resp.status_code == 202
     mock_run.assert_called_once()
     assert mock_run.call_args.args[-1] == "quality"
