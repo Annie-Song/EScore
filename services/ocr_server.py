@@ -1,6 +1,6 @@
 """OCR 微服务：独立 FastAPI 进程，提供文字识别、作业分区与增强识别 HTTP 接口。
 
-A9 拆分：把 OCR 识别（services/ocr.py）、智能分区（services/segment.py）与整图
+A11 拆分：把 OCR 识别（services/ocr.py）、智能分区（services/segment.py）与整图
 增强去重识别（services/region_ocr.py）从主进程迁移到独立服务，业务调用方零改动。
 识别/分区/增强均为重量级操作，模型懒加载，首次请求才真正加载 PaddleOCR。
 """
