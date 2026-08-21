@@ -157,6 +157,30 @@
     display: inline-flex;
   }
 
+  /* 收藏按钮：描边次级样式，收藏后变绿禁用 */
+  .fav-btn {
+    margin-top: 10px;
+    margin-left: 10px;
+    padding: 6px 16px;
+    font-size: 13px;
+    width: auto;
+    display: inline-flex;
+    background: var(--card-bg);
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+  }
+
+  .fav-btn:hover {
+    background-color: var(--primary-color);
+    color: #fff;
+  }
+
+  .fav-btn.favorited {
+    background-color: var(--success-color);
+    color: #fff;
+    border-color: var(--success-color);
+  }
+
   .empty {
     text-align: center;
     color: var(--light-text);
@@ -358,6 +382,7 @@
         </details>
         <div class="q-analysis" style="display: none"></div>
         <button type="button" class="detail-btn">查看解析</button>
+        <button type="button" class="fav-btn">收藏</button>
       </div>`;
   }
 
@@ -455,6 +480,40 @@
     btn.textContent = showing ? "查看解析" : "收起解析";
   }
 
+  // 收藏当前题目：登录态 POST /api/favorites；游客收到 401 仅提示不跳转
+  async function addFavorite(card, btn) {
+    const score = (card.querySelector(".tag-score") || {}).textContent || "";
+    const payload = {
+      qid: card.dataset.qid,
+      subject: (card.querySelector(".tag-subject") || {}).textContent || "",
+      qtype: (card.querySelector(".tag-qtype") || {}).textContent || "",
+      question: (card.querySelector(".q-question") || {}).textContent || "",
+      score: score.replace(/[^0-9.]/g, ""),
+    };
+    try {
+      const response = await fetch("/api/favorites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (response.status === 401) {
+        showNotification("请先登录", "warning");
+        return;
+      }
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        showNotification(data.message || "收藏失败，请重试", "error");
+        return;
+      }
+      btn.textContent = "已收藏";
+      btn.disabled = true;
+      btn.classList.add("favorited");
+      showNotification("已收藏到个人卷库", "success");
+    } catch (error) {
+      showNotification("收藏失败，请重试", "error");
+    }
+  }
+
   // 答案折叠面板打开时触发同一加载机制，未加载先显示占位
   function bindAnswerToggle() {
     document.querySelectorAll("#resultList .q-answer").forEach((details) => {
@@ -491,6 +550,11 @@
       }
     });
     document.getElementById("resultList").addEventListener("click", (e) => {
+      const favBtn = e.target.closest(".fav-btn");
+      if (favBtn) {
+        addFavorite(favBtn.closest(".result-card"), favBtn);
+        return;
+      }
       const btn = e.target.closest(".detail-btn");
       if (!btn) {
         return;

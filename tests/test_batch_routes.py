@@ -12,12 +12,13 @@ import services.task_store as task_store
 class _SyncThread:
     """替代 threading.Thread 同步执行 target，避免异步竞态。"""
 
-    def __init__(self, target, args, daemon=None):
+    def __init__(self, target, args, kwargs=None, daemon=None):
         self._target = target
         self._args = args
+        self._kwargs = kwargs or {}
 
     def start(self):
-        self._target(*self._args)
+        self._target(*self._args, **self._kwargs)
 
 
 @pytest.fixture(autouse=True)
@@ -34,6 +35,21 @@ def client():
     app.config["TESTING"] = True
     with app.test_client() as c:
         yield c
+
+
+@pytest.fixture
+def pro_client(client, monkeypatch):
+    """带 pro 档会话的客户端：session 写 user_id，current_user 返回 pro 档。"""
+    with client.session_transaction() as sess:
+        sess["user_id"] = "demo"
+        sess["display_name"] = "演示"
+        sess["role"] = "teacher"
+        sess["plan"] = "pro"
+    monkeypatch.setattr(
+        "services.auth.current_user",
+        lambda: {"id": "demo", "plan": "pro", "display_name": "演示"},
+    )
+    return client
 
 
 def _multipart(file2_name: str, work_names) -> dict:
@@ -82,8 +98,8 @@ def test_batch_grade_invalid_work_suffix_returns_400(client):
     assert resp.get_json()["message"] == "不支持的文件类型"
 
 
-def test_batch_grade_success_returns_202_and_creates_task(client):
-    """成功提交：202 + task_id，任务已创建，后台线程被调用且参数正确。"""
+def test_batch_grade_success_returns_202_and_creates_task(pro_client):
+    """成功提交：202 + task_id，任务已创建，后台线程被调用且归属 user_id 传入。"""
     data = {
         "file2": (io.BytesIO(b"ref"), "reference.jpg"),
         "files": [
@@ -95,7 +111,7 @@ def test_batch_grade_success_returns_202_and_creates_task(client):
                side_effect=["/tmp/ref.jpg", "/tmp/w1.png", "/tmp/w2.png"]), \
          patch("threading.Thread", _SyncThread), \
          patch("services.batch.run_batch_job") as mock_run:
-        resp = client.post("/batch_grade", data=data, content_type="multipart/form-data")
+        resp = pro_client.post("/batch_grade", data=data, content_type="multipart/form-data")
 
     assert resp.status_code == 202
     body = resp.get_json()
@@ -104,9 +120,11 @@ def test_batch_grade_success_returns_202_and_creates_task(client):
     assert task is not None
     assert task["status"] == "running"
     assert task["total_items"] == 2
-    mock_run.assert_called_once_with(
+    mock_run.assert_called_once()
+    assert mock_run.call_args.args == (
         body["task_id"], "/tmp/ref.jpg", ["/tmp/w1.png", "/tmp/w2.png"], "en", False, False, "fast"
     )
+    assert mock_run.call_args.kwargs == {"user_id": "demo"}
 
 
 def test_batch_task_existing_id_returns_200_with_status(client):

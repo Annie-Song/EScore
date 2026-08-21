@@ -10,6 +10,8 @@ import torch  # noqa: F401
 from flask import Flask
 from flask_cors import CORS
 
+from utils import config
+
 # 项目根目录，模板与上传目录均相对根目录定位
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -24,6 +26,7 @@ def create_app() -> Flask:
         static_folder=os.path.join(BASE_DIR, 'static'),
     )
     CORS(app)
+    app.secret_key = config.SECRET_KEY
 
     from app.routes import bp
     app.register_blueprint(bp)
@@ -36,5 +39,11 @@ def create_app() -> Flask:
 
     from app.bank_routes import bp as bank_bp
     app.register_blueprint(bank_bp)
+
+    from app.auth_routes import bp as auth_bp
+    app.register_blueprint(auth_bp)
+
+    from app.me_routes import bp as me_bp
+    app.register_blueprint(me_bp)
 
     return app

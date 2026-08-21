@@ -86,8 +86,16 @@ def compare_texts():
     if not work_content or not answer_content:
         return jsonify({"message": "请输入作业内容和参考答案内容"}), 400
 
+    # 延迟导入避免与 services.auth 的循环依赖；free 档无在线精排权限，
+    # allow_online=False 让 grade_answer 内部把显式精排优雅降级为离线。
+    from services.auth import current_plan
+
     result = grade_answer(
-        answer_content, work_content, force_online=force_online, quality_mode=quality
+        answer_content,
+        work_content,
+        force_online=force_online,
+        quality_mode=quality,
+        allow_online=(current_plan() == 'pro'),
     )
     return jsonify({
         "score": result["score"],

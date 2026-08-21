@@ -658,3 +658,208 @@ progress:indeterminate::-webkit-progress-value {
     padding: 3px 10px;
   }
 }
+
+/* ============================================================
+   侧边导航栏（task/21）
+   顶层横向导航改为左侧固定 sidebar。以下为对既有同名选择器的
+   覆盖，追加于文件末尾以赢得层叠；不删除任何既有规则。
+   ============================================================ */
+
+/* 侧边栏容器：固定左侧，纵向排布 */
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 240px;
+  height: 100vh;
+  background: var(--card-bg);
+  border-right: 1px solid var(--border-color);
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  z-index: 100;
+  overflow-y: auto;
+}
+
+/* 品牌区 */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.brand-logo {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.brand-name {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--dark-text);
+  white-space: nowrap;
+}
+
+/* 导航纵向化：覆盖既有胶囊居中布局 */
+.top-nav {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* 导航项：由胶囊改为侧栏列表项，保留 hover/active 蓝底白字 */
+.nav-item {
+  display: block;
+  text-align: left;
+  padding: 10px 14px;
+  border-radius: 8px;
+}
+
+/* 侧边栏底部：主题开关 + 用户区，顶到底部 */
+.sidebar-footer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* 主题开关：由 fixed 右上角改为侧栏内普通行元素 */
+.theme-toggle-container {
+  position: static;
+  top: auto;
+  right: auto;
+  z-index: auto;
+  width: fit-content;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+}
+
+/* 用户区：头像 / 昵称 / 个人主页 / 退出 */
+.user-area {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-color);
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.user-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--dark-text);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-link {
+  font-size: 13px;
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+.user-link:hover {
+  text-decoration: underline;
+}
+
+.logout-form {
+  margin: 0;
+}
+
+.user-logout {
+  display: inline-flex;
+  width: auto;
+  padding: 6px 14px;
+  font-size: 13px;
+}
+
+/* 主内容区：左移为侧边栏让位 */
+.main-content {
+  margin-left: 240px;
+  min-height: 100vh;
+  padding: 24px 20px;
+}
+
+/* 响应式：窄屏侧边栏折叠为顶部横栏 */
+@media (max-width: 768px) {
+  .sidebar {
+    position: static;
+    width: 100%;
+    height: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .brand {
+    border-bottom: none;
+    padding: 0;
+  }
+
+  .top-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .nav-item {
+    padding: 6px 12px;
+  }
+
+  .main-content {
+    margin-left: 0;
+    padding: 16px 12px;
+  }
+
+  .sidebar-footer {
+    margin-left: auto;
+    margin-top: 0;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* 主题开关精简为仅图标 */
+  .theme-toggle-container {
+    padding: 0;
+  }
+
+  .theme-label {
+    display: none;
+  }
+
+  .user-area {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    padding-top: 0;
+    border-top: none;
+  }
+}

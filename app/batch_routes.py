@@ -21,6 +21,7 @@ def batch_grade():
     """批量批改入口：接收参考答案图与多份作业图，异步启动批改线程。"""
     import threading
 
+    from services.auth import current_user_id, plan_required
     from services.batch import run_batch_job
     from services.task_store import create_task
 
@@ -54,6 +55,12 @@ def batch_grade():
     if quality not in ROUTING_PRESETS:
         return jsonify({"message": f"未知评分质量: {quality}"}), 400
 
+    # 全部 400 参数校验通过后才做会员门控，保证非法输入优先返回 400
+    gate = plan_required('pro')
+    if gate is not None:
+        return gate
+    user_id = current_user_id()
+
     task_id = create_task(len(work_paths))
     threading.Thread(
         target=run_batch_job,
@@ -66,6 +73,7 @@ def batch_grade():
             error_ai_mode,
             quality,
         ),
+        kwargs={"user_id": user_id} if user_id else {},
         daemon=True,
     ).start()
     logger.info("批量批改任务已启动: task_id=%s, 作业数=%d", task_id, len(work_paths))
