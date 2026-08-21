@@ -67,3 +67,6 @@ ESRGAN/models/*.pth
 # 忽略个人文档与工作记忆
 DOCX/
 memory/
+
+# git worktree 临时工作目录
+.claude/worktrees/
