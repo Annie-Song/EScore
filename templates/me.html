@@ -1,0 +1,400 @@
+{% extends "base.html" %}
+
+{% block title %}个人主页 - 智能作业批改系统{% endblock %}
+
+{% block styles %}
+<style>
+  /* 个人主页专属样式：提示条、卡片网格、徽章、列表 */
+  .me-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  @media (max-width: 768px) {
+    .me-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .notice {
+    background: var(--card-bg);
+    border-left: 4px solid var(--primary-color);
+    border-radius: var(--border-radius);
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    color: var(--dark-text);
+    font-size: 14px;
+  }
+
+  /* 会员徽章：免费灰色 / 专业金色 */
+  .plan-badge {
+    display: inline-block;
+    padding: 4px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 10px;
+  }
+
+  .plan-free {
+    background-color: #8e8e93;
+  }
+
+  .plan-pro {
+    background-color: #ff9500;
+  }
+
+  .plan-desc {
+    display: block;
+    color: var(--light-text);
+    font-size: 14px;
+    margin-bottom: 14px;
+  }
+
+  /* 我的资料 */
+  .profile-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .profile-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    font-size: 14px;
+  }
+
+  .profile-label {
+    color: var(--light-text);
+    flex-shrink: 0;
+  }
+
+  .profile-value {
+    color: var(--dark-text);
+    font-weight: 500;
+    text-align: right;
+    word-break: break-all;
+  }
+
+  /* 批改记录列表 */
+  .batch-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .batch-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 10px 12px;
+    background: var(--light-bg);
+    border-radius: var(--border-radius);
+    font-size: 13px;
+  }
+
+  .batch-id {
+    font-weight: 600;
+    color: var(--primary-color);
+  }
+
+  .batch-meta {
+    color: var(--light-text);
+  }
+
+  .batch-status {
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    color: #fff;
+  }
+
+  .status-succeeded {
+    background-color: var(--success-color);
+  }
+
+  .status-running {
+    background-color: var(--warning-soft-color);
+  }
+
+  .status-failed {
+    background-color: var(--warning-color);
+  }
+
+  /* 卷库列表 */
+  .favorite-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .favorite-item {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    background: var(--light-bg);
+    border-radius: var(--border-radius);
+  }
+
+  .favorite-main {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .favorite-qid {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 2px;
+  }
+
+  .favorite-question {
+    font-size: 13px;
+    color: var(--dark-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  .favorite-remove {
+    flex-shrink: 0;
+    width: auto;
+    padding: 4px 10px;
+    font-size: 12px;
+    background: var(--card-bg);
+    color: var(--warning-color);
+    border: 1px solid var(--warning-color);
+  }
+
+  .favorite-remove:hover {
+    background: var(--warning-color);
+    color: #fff;
+  }
+
+  .favorite-more {
+    display: inline-block;
+    margin-top: 14px;
+    font-size: 13px;
+    color: var(--primary-color);
+    text-decoration: none;
+  }
+
+  .favorite-more:hover {
+    text-decoration: underline;
+  }
+
+  .empty {
+    text-align: center;
+    color: var(--light-text);
+    padding: 20px 10px;
+    font-size: 14px;
+  }
+
+  .empty a {
+    color: var(--primary-color);
+    text-decoration: none;
+  }
+
+  .empty a:hover {
+    text-decoration: underline;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+  <div class="container">
+    <div class="page-header">
+      <h1>个人主页</h1>
+      <p>会员状态、个人资料、批改记录与个人卷库</p>
+    </div>
+
+    {% if not session.get('user_id') %}
+      <div class="notice">登录后可查看个人数据与收藏</div>
+    {% endif %}
+
+    <div class="me-grid">
+      <div class="card">
+        <div class="card-title"><span>1</span>会员状态</div>
+        <span class="plan-badge plan-free" id="planBadge">免费版</span>
+        <span class="plan-desc" id="planDesc">当前为免费版，可体验基础批改功能</span>
+        <button type="button" id="upgradeBtn" class="btn-secondary">升级专业版</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span>2</span>我的资料</div>
+        <div class="profile-list" id="profileList"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span>3</span>我的批改记录</div>
+        <div class="batch-list" id="batchList"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span>4</span>我的卷库</div>
+        <div class="favorite-list" id="favoriteList"></div>
+        <a href="/bank" class="favorite-more">去分类题库收藏题目</a>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const STATUS_LABEL = {
+    running: "批改中",
+    succeeded: "已完成",
+    failed: "失败",
+  };
+
+  function formatDate(value) {
+    if (!value) {
+      return "-";
+    }
+    return String(value).slice(0, 16).replace("T", " ");
+  }
+
+  function renderPlan(data) {
+    const plan = data.plan || "free";
+    const badge = document.getElementById("planBadge");
+    const desc = document.getElementById("planDesc");
+    if (plan === "pro") {
+      badge.textContent = "专业版";
+      badge.className = "plan-badge plan-pro";
+      desc.textContent = "已开通专业版，解锁全部高级功能";
+    } else {
+      badge.textContent = "免费版";
+      badge.className = "plan-badge plan-free";
+      desc.textContent = "当前为免费版，可体验基础批改功能";
+    }
+  }
+
+  function renderProfile(user) {
+    const list = document.getElementById("profileList");
+    if (!user) {
+      list.innerHTML = `<div class="empty">未登录</div>`;
+      return;
+    }
+    const roleLabel = { teacher: "教师", admin: "管理员" };
+    const items = [
+      ["用户名", user.username || "-"],
+      ["昵称", user.display_name || "未设置"],
+      ["角色", roleLabel[user.role] || user.role || "-"],
+      ["注册时间", formatDate(user.created_at)],
+    ];
+    list.innerHTML = items
+      .map(
+        ([label, value]) =>
+          `<div class="profile-item"><span class="profile-label">${escapeHtml(label)}</span><span class="profile-value">${escapeHtml(value)}</span></div>`
+      )
+      .join("");
+  }
+
+  function renderBatches(batches) {
+    const list = document.getElementById("batchList");
+    if (!batches || batches.length === 0) {
+      list.innerHTML = `<div class="empty">暂无批改记录</div>`;
+      return;
+    }
+    list.innerHTML = batches
+      .map((batch) => {
+        const status = STATUS_LABEL[batch.status] || batch.status || "-";
+        const statusClass = `status-${batch.status || ""}`;
+        const shortId = String(batch.batch_id || "").replace(/^batch-/, "");
+        return `
+          <div class="batch-item">
+            <span class="batch-id">${escapeHtml(shortId)}</span>
+            <span class="batch-meta">${batch.record_count || 0} 题 · 均分 ${(batch.avg_score || 0).toFixed(1)} · ${formatDate(batch.created_at)}</span>
+            <span class="batch-status ${statusClass}">${escapeHtml(status)}</span>
+          </div>`;
+      })
+      .join("");
+  }
+
+  function renderFavorites(favorites) {
+    const list = document.getElementById("favoriteList");
+    if (!favorites || favorites.length === 0) {
+      list.innerHTML = `<div class="empty">卷库为空，去分类题库收藏题目</div>`;
+      return;
+    }
+    list.innerHTML = favorites
+      .map(
+        (fav) => `
+          <div class="favorite-item" data-qid="${escapeHtml(fav.qid)}">
+            <div class="favorite-main">
+              <div class="favorite-qid">${escapeHtml(fav.subject || "未分类")} · ${escapeHtml(fav.qtype || "题目")}</div>
+              <div class="favorite-question">${escapeHtml(fav.question || "（无题目摘要）")}</div>
+            </div>
+            <button type="button" class="favorite-remove">取消收藏</button>
+          </div>`
+      )
+      .join("");
+  }
+
+  function renderMe(data) {
+    renderPlan(data);
+    renderProfile(data.user);
+    renderBatches(data.recent_batches || []);
+    renderFavorites(data.favorites || []);
+  }
+
+  async function loadMe() {
+    try {
+      const response = await fetch("/api/me");
+      if (!response.ok) {
+        showNotification("加载个人数据失败，请重试", "error");
+        return;
+      }
+      renderMe(await response.json());
+    } catch (error) {
+      showNotification("加载个人数据失败，请重试", "error");
+    }
+  }
+
+  async function removeFavorite(qid) {
+    try {
+      const response = await fetch(`/api/favorites/${encodeURIComponent(qid)}`, {
+        method: "DELETE",
+      });
+      if (response.status === 401) {
+        showNotification("请先登录", "warning");
+        return;
+      }
+      if (!response.ok) {
+        showNotification("取消收藏失败，请重试", "error");
+        return;
+      }
+      showNotification("已取消收藏", "success");
+      loadMe();
+    } catch (error) {
+      showNotification("取消收藏失败，请重试", "error");
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    document.getElementById("upgradeBtn").addEventListener("click", () => {
+      showNotification("支付功能即将上线，敬请期待", "warning");
+    });
+
+    document.getElementById("favoriteList").addEventListener("click", (e) => {
+      const btn = e.target.closest(".favorite-remove");
+      if (!btn) {
+        return;
+      }
+      const qid = btn.closest(".favorite-item").dataset.qid;
+      removeFavorite(qid);
+    });
+
+    loadMe();
+  });
+</script>
+{% endblock %}
