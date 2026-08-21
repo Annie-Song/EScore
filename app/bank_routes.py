@@ -4,7 +4,7 @@
 """
 from __future__ import annotations
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, render_template, request
 
 from services.question_bank_store import QuestionBankStore
 
@@ -84,3 +84,9 @@ def bank_question(qid: str):
     if row is None:
         return jsonify({"message": "题目不存在"}), 404
     return jsonify(row), 200
+
+
+@bp.route('/bank', methods=['GET'])
+def bank_page():
+    """题库浏览检索页。"""
+    return render_template('bank.html'), 200
