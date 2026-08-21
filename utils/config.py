@@ -80,3 +80,13 @@ ERROR_AI_BAND_HIGH = 85.0  # 模糊带上界：高于此分一律规则分档
 
 # 批量批改分区裁剪临时目录（文件名用 uuid，防并发冲突）
 SEGMENT_OUTPUT_FOLDER = './output/segments'
+
+# 分类题库（F7）：GAOKAO-Bench 全量主客观题入库为可检索题库（数据底座）
+QUESTION_BANK_GRADE = '高中'
+QUESTION_BANK_DB_PATH = './output/question_bank.db'
+QUESTION_BANK_GAOKAO_DIR = EVAL_GAOKAO_DIR  # './data/gaokao'
+QUESTION_BANK_SUBJECTIVE_DIR = 'Data/Subjective_Questions'
+QUESTION_BANK_OBJECTIVE_DIR = 'Data/Objective_Questions'
+QUESTION_BANK_GPT4_OBJ_DIR = 'Results/gpt_4_0314_obj'
+QUESTION_BANK_DIFFICULTY_ADVANCED_MIN = 12  # 主观题分值分档：>=此值为进阶
+QUESTION_BANK_DIFFICULTY_BASIC_MAX = 6      # 主观题分值分档：<此值为基础，其余中等
