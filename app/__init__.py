@@ -18,7 +18,11 @@ def create_app() -> Flask:
     """创建并配置 Flask 应用实例，注册路由。"""
     logging.basicConfig(level=logging.INFO)
 
-    app = Flask(__name__, template_folder=os.path.join(BASE_DIR, 'templates'))
+    app = Flask(
+        __name__,
+        template_folder=os.path.join(BASE_DIR, 'templates'),
+        static_folder=os.path.join(BASE_DIR, 'static'),
+    )
     CORS(app)
 
     from app.routes import bp
