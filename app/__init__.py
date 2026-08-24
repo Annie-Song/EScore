@@ -55,6 +55,9 @@ def create_app() -> Flask:
     from app.school_routes import bp as school_bp
     app.register_blueprint(school_bp)
 
+    from app.user_role_routes import bp as user_role_bp
+    app.register_blueprint(user_role_bp)
+
     from app.health_routes import bp as health_bp
     app.register_blueprint(health_bp)
 

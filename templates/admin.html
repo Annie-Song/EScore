@@ -81,8 +81,8 @@
 {% block content %}
   <div class="container">
     <div class="page-header">
-      <h1>学校管理</h1>
-      <p>学校维度数据隔离与管理</p>
+      <h1>{{ '本校管理' if session.get('role') == 'school_admin' else '学校管理' }}</h1>
+      <p>{{ '本校成员、批改统计与题库管理' if session.get('role') == 'school_admin' else '学校维度数据隔离与管理' }}</p>
     </div>
 
     <div class="card">
@@ -102,6 +102,7 @@
       </table>
     </div>
 
+    {% if session.get('role') == 'admin' %}
     <div class="card">
       <div class="card-title"><span>2</span>新建学校</div>
       <div class="create-form">
@@ -116,6 +117,7 @@
         <button type="button" id="createSchoolBtn">创建</button>
       </div>
     </div>
+    {% endif %}
 
     <div class="card detail-box" id="detailBox">
       <div class="card-title"><span>3</span><span id="detailTitle">成员与批改统计</span></div>
@@ -126,6 +128,9 @@
 
 {% block scripts %}
 <script>
+  const currentRole = "{{ session.get('role', '') }}";
+  const currentSchoolId = "{{ session.get('school_id', '') }}";
+
   async function loadSchools() {
     try {
       const response = await fetch("/api/admin/schools");
@@ -202,13 +207,20 @@
     ]);
     const memberRows = members.length
       ? members
-          .map(
-            (m) =>
-              `<tr><td>${escapeHtml(m.display_name || m.username || "")}</td>` +
+          .map((m) => {
+            const roleCell =
+              currentRole === "admin"
+                ? `<select class="role-select" data-user-id="${escapeHtml(m.id)}" data-prev="${escapeHtml(m.role || "")}">` +
+                  `<option value="teacher"${m.role === "teacher" ? " selected" : ""}>教师</option>` +
+                  `<option value="school_admin"${m.role === "school_admin" ? " selected" : ""}>学校管理员</option>` +
+                  `<option value="admin"${m.role === "admin" ? " selected" : ""}>管理员</option>` +
+                  `</select>`
+                : escapeHtml(m.role || "");
+            return `<tr><td>${escapeHtml(m.display_name || m.username || "")}</td>` +
               `<td>${escapeHtml(m.username || "")}</td>` +
-              `<td>${escapeHtml(m.role || "")}</td>` +
-              `<td>${escapeHtml(m.plan || "")}</td></tr>`
-          )
+              `<td>${roleCell}</td>` +
+              `<td>${escapeHtml(m.plan || "")}</td></tr>`;
+          })
           .join("")
       : `<tr><td colspan="4" class="empty">暂无成员</td></tr>`;
     const batchRows = batches.length
@@ -270,6 +282,38 @@
         return;
       }
       showDetail(row.dataset.id, row.querySelector("td").textContent);
+    });
+
+    document.addEventListener("change", async (e) => {
+      const select = e.target.closest(".role-select");
+      if (!select) {
+        return;
+      }
+      const prevRole = select.dataset.prev || "";
+      try {
+        const response = await fetch(
+          `/api/admin/users/${encodeURIComponent(select.dataset.userId)}/role`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ role: select.value }),
+          }
+        );
+        const body = await response.json().catch(() => ({}));
+        if (response.status === 200) {
+          select.dataset.prev = select.value;
+          showNotification("角色已更新", "success");
+        } else if ([400, 403, 404].includes(response.status)) {
+          select.value = prevRole;
+          showNotification(body.message || "角色更新失败", "warning");
+        } else {
+          select.value = prevRole;
+          showNotification("角色更新失败，请重试", "error");
+        }
+      } catch (error) {
+        select.value = prevRole;
+        showNotification("角色更新失败，请重试", "error");
+      }
     });
   });
 </script>

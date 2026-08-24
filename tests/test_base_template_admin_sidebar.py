@@ -82,11 +82,19 @@ def test_guest_hides_school_management(client: Any) -> None:
 
 
 def test_base_template_contains_admin_conditional() -> None:
-    """base.html 直接内容含 admin 条件渲染（session.role=='admin'）。"""
+    """base.html 直接内容含 admin/school_admin 条件渲染。"""
     html = (_TEMPLATE_DIR / "base.html").read_text(encoding="utf-8")
-    assert "{% if session.get('role') == 'admin' %}" in html
+    assert "{% if session.get('role') in ('admin', 'school_admin') %}" in html
     assert _ADMIN_HREF in html
     assert _ADMIN_ENTRY in html
+
+
+def test_school_admin_session_renders_school_management_link(client: Any) -> None:
+    """session.role=='school_admin'：侧栏渲染「学校管理」入口链接。"""
+    _set_role(client, "school_admin")
+    sidebar = _sidebar_html(client)
+    assert _ADMIN_HREF in sidebar
+    assert _ADMIN_ENTRY in sidebar
 
 
 def test_me_page_renders_upgrade_button(client: Any) -> None:

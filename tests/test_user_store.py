@@ -92,3 +92,19 @@ def test_wal_mode_enabled(tmp_path) -> None:
     finally:
         conn.close()
     assert mode == "wal"
+
+
+def test_update_role_changes_user_role(store) -> None:
+    """update_role 后 get_user 返回新 role，可读回。"""
+    user = store.create_user("alice", "hash")
+    assert store.get_user(user["id"])["role"] == "teacher"
+    store.update_role(user["id"], "school_admin")
+    assert store.get_user(user["id"])["role"] == "school_admin"
+    store.update_role(user["id"], "admin")
+    assert store.get_user(user["id"])["role"] == "admin"
+
+
+def test_update_role_missing_user_raises_value_error(store) -> None:
+    """update_role 用户不存在：抛 ValueError（fail-fast）。"""
+    with pytest.raises(ValueError):
+        store.update_role("no-such-user", "admin")
