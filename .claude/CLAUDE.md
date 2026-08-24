@@ -12,7 +12,7 @@
 | servers/ | 独立微服务进程（embedding/、ocr/） |
 | frontend/ | 前端资源（templates/ + static/，目录级前后端分离） |
 | scripts/ | 运维/评测脚本 |
-| experiments/ | 遗留实验目录（enhance/、image/、others/、txt_compare/ 等） |
+| experiments/ | 遗留实验目录（enhance/、image/、others/、txt_compare/，含归档 README，不参与运行） |
 | tests/ | 测试，按功能域分子目录 |
 
 backend/ 功能域：core（config/files）、auth（会话/用户/登录/me/角色）、bank（题库）、school（学校）、scoring（评分引擎/deepseek/embedding/评测）、ocr（OCR 客户端）、batch（批改管线/任务/存储）、stats（统计）、grading（单份批改/报告）、pay（支付网关）、infra（健康检查）。
@@ -45,7 +45,7 @@ backend/ 功能域：core（config/files）、auth（会话/用户/登录/me/角
 
 ## 版本号
 
-采用语义化三段：主版本.次版本.修订。重大重构升主版本、新功能升次版本、bugfix 升修订。当前版本 2.17.0。
+采用语义化三段：主版本.次版本.修订。重大重构升主版本、新功能升次版本、bugfix 升修订。当前版本 2.18.0。
 
 ## Git 工作流
 

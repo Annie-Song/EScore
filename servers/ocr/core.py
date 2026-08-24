@@ -10,6 +10,7 @@ import uuid
 from typing import List, Tuple
 
 from backend.core import config
+from backend.core.cache import BoundedCache, file_sha1
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,8 @@ _load_lock = threading.Lock()
 _infer_lock = threading.Lock()
 # 增强降级警告只记录一次，避免每个低置信度图片重复刷日志
 _enhance_warned = False
+# OCR 文本结果缓存：键 = (file_sha1(path), lang)，重复图免 PaddleOCR 推理
+_text_cache = BoundedCache(config.OCR_CACHE_MAX)
 
 
 def _load_paddleocr(lang: str) -> object:
@@ -137,9 +140,23 @@ def recognize_single(path: str, lang: str = 'ch') -> str:
 
 
 def recognize_texts(image_paths: List[str], lang: str = 'ch') -> List[str]:
-    """识别多张图片文字，逐图复用 recognize_single，返回按行拼接的文本列表。
+    """识别多张图片文字，优先命中内容哈希缓存，未命中逐图复用 recognize_single。
+
+    键 = (file_sha1(path), lang)：同图不同语言识别结果不同，键必须含 lang；
+    缓存的是 recognize_single 的最终文本（含低置信度增强决策后的结果）。
+    region 增强路径（recognize_lines_of / enhance_retry）不进缓存。
 
     单张图片平均置信度低于 config.ENHANCE_CONFIDENCE_THRESHOLD 且 ESRGAN 增强
     可用时，增强该图后重识别；若增强后置信度更高则采用增强结果。
     """
-    return [recognize_single(path, lang) for path in image_paths]
+    results: List[str] = []
+    for path in image_paths:
+        key = (file_sha1(path), lang)
+        cached = _text_cache.get(key)
+        if cached is not None:
+            results.append(cached)
+            continue
+        text = recognize_single(path, lang)
+        _text_cache.set(key, text)
+        results.append(text)
+    return results
