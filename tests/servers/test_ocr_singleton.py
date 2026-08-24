@@ -67,10 +67,12 @@ def _inject_fake_paddleocr(*, raise_on_init: bool = False) -> Iterator[Tuple[Dic
 
 @pytest.fixture(autouse=True)
 def _reset_ocr_singleton_cache():
-    """每轮测试前后复位模块级缓存，隔离用例间状态。"""
+    """每轮测试前后复位模块级缓存（OCR 实例 + 文本结果缓存），隔离用例间状态。"""
     ocr_module._ocr_instances.clear()
+    ocr_module._text_cache.clear()
     yield
     ocr_module._ocr_instances.clear()
+    ocr_module._text_cache.clear()
 
 
 def test_load_paddleocr_same_lang_returns_same_instance():
@@ -91,13 +93,17 @@ def test_load_paddleocr_different_lang_creates_independent_instances():
     assert counter["count"] == 2
 
 
-def test_recognize_texts_reuses_cached_ocr_instance():
+def test_recognize_texts_reuses_cached_ocr_instance(tmp_path):
     """recognize_texts 连续调用复用缓存实例，底层 PaddleOCR 仅构造一次。"""
+    path_a = tmp_path / "a.jpg"
+    path_b = tmp_path / "b.jpg"
+    path_a.write_bytes(b"content-a")
+    path_b.write_bytes(b"content-b")
     with _inject_fake_paddleocr() as (counter, _):
-        first = recognize_texts(["a.jpg"], lang="ch")
-        second = recognize_texts(["b.jpg"], lang="ch")
-    assert first == ["文本-a.jpg"]
-    assert second == ["文本-b.jpg"]
+        first = recognize_texts([str(path_a)], lang="ch")
+        second = recognize_texts([str(path_b)], lang="ch")
+    assert first == [f"文本-{path_a}"]
+    assert second == [f"文本-{path_b}"]
     assert counter["count"] == 1
 
 
@@ -139,8 +145,12 @@ def test_load_paddleocr_init_error_does_not_pollute_cache():
         assert counter["count"] == 1
 
 
-def test_recognize_texts_concurrent_calls_serialized_by_infer_lock():
+def test_recognize_texts_concurrent_calls_serialized_by_infer_lock(tmp_path):
     """多线程并发 recognize_texts 时 _infer_lock 串行化 ocr.ocr，最大并发深度 = 1。"""
+    path_a = tmp_path / "a.jpg"
+    path_b = tmp_path / "b.jpg"
+    path_a.write_bytes(b"content-a")
+    path_b.write_bytes(b"content-b")
     with _inject_fake_paddleocr() as (counter, _):
         ocr_module._load_paddleocr("ch")  # 预热缓存，本用例聚焦推理串行化
         errors = []
@@ -148,7 +158,7 @@ def test_recognize_texts_concurrent_calls_serialized_by_infer_lock():
 
         def _call() -> None:
             try:
-                results.append(recognize_texts(["a.jpg", "b.jpg"], lang="ch"))
+                results.append(recognize_texts([str(path_a), str(path_b)], lang="ch"))
             except Exception as exc:  # noqa: BLE001 - 测试内收集异常便于断言
                 errors.append(exc)
 
@@ -161,7 +171,7 @@ def test_recognize_texts_concurrent_calls_serialized_by_infer_lock():
         instance = ocr_module._ocr_instances["ch"]
         assert errors == []
         assert len(results) == 8
-        assert results[0] == ["文本-a.jpg", "文本-b.jpg"]
+        assert results[0] == [f"文本-{path_a}", f"文本-{path_b}"]
         assert all(result == results[0] for result in results)
         assert instance._max_active == 1
         assert counter["count"] == 1

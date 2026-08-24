@@ -17,21 +17,39 @@ class _FakeOCR:
         return self._results.pop(0)
 
 
-def test_recognize_texts_joins_lines_and_shares_instance():
+@pytest.fixture(autouse=True)
+def _reset_ocr_cache():
+    """每轮测试前后清空模块级文本缓存与 OCR 实例，隔离用例间状态。"""
+    ocr_module._text_cache.clear()
+    ocr_module._ocr_instances.clear()
+    yield
+    ocr_module._text_cache.clear()
+    ocr_module._ocr_instances.clear()
+
+
+def test_recognize_texts_joins_lines_and_shares_instance(tmp_path):
+    path_a = tmp_path / "a.jpg"
+    path_b = tmp_path / "b.jpg"
+    path_a.write_bytes(b"content-a")
+    path_b.write_bytes(b"content-b")
     fake = _FakeOCR([
         [[[None, ("第一行", 0.9)], [None, ("第二行", 0.8)]]],
         [[[None, ("参考答案", 0.9)]]],
     ])
     with patch("servers.ocr.core._load_paddleocr", return_value=fake):
-        result = recognize_texts(["a.jpg", "b.jpg"], lang="ch")
+        result = recognize_texts([str(path_a), str(path_b)], lang="ch")
     assert result == ["第一行\n第二行", "参考答案"]
-    assert fake.calls == ["a.jpg", "b.jpg"]
+    assert fake.calls == [str(path_a), str(path_b)]
 
 
-def test_recognize_texts_handles_no_text_result():
+def test_recognize_texts_handles_no_text_result(tmp_path):
+    path_a = tmp_path / "a.jpg"
+    path_b = tmp_path / "b.jpg"
+    path_a.write_bytes(b"content-c")
+    path_b.write_bytes(b"content-d")
     fake = _FakeOCR([[None], [None]])
     with patch("servers.ocr.core._load_paddleocr", return_value=fake):
-        result = recognize_texts(["a.jpg", "b.jpg"])
+        result = recognize_texts([str(path_a), str(path_b)])
     assert result == ["", ""]
 
 

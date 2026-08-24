@@ -90,6 +90,11 @@ OCR_CPU_THREADS = int(os.environ.get("OCR_CPU_THREADS", "4"))
 # OCR 推理设备：默认 cpu；预留 GPU（设为 gpu 需安装 paddlepaddle-gpu，PaddleOCR(device='gpu') 即启用）
 OCR_DEVICE = os.environ.get("OCR_DEVICE", "cpu")
 
+# OCR 识别结果缓存上限（重复图免推理）；满则整体清空，与参考缓存 REF_CACHE_MAX 先例一致
+OCR_CACHE_MAX = int(os.environ.get("OCR_CACHE_MAX", "256"))
+# 单图评分结果缓存上限（同图同参考重复出分直接命中）；满则整体清空
+GRADE_CACHE_MAX = int(os.environ.get("GRADE_CACHE_MAX", "256"))
+
 # 错因 AI 归类：默认关闭（基础用户规则分档），落入模糊带才调 DeepSeek 细分类
 ERROR_AI_MODE = False
 ERROR_AI_BAND_LOW = 30.0  # 模糊带下界：低于此分一律规则分档

@@ -29,21 +29,25 @@ class _FakeOCR:
 
 @pytest.fixture(autouse=True)
 def _reset_ocr_enhance_state():
-    """每轮测试前后复位模块级状态，并清理 output/enhance 运行时残留。"""
+    """每轮测试前后复位模块级状态（OCR 实例/文本缓存/增强标志），并清理残留。"""
     enhance_module._model = None
     enhance_module._load_warned = False
     ocr_module._enhance_warned = False
     ocr_module._ocr_instances.clear()
+    ocr_module._text_cache.clear()
     yield
     shutil.rmtree(config.ENHANCE_OUTPUT_FOLDER, ignore_errors=True)
     enhance_module._model = None
     enhance_module._load_warned = False
     ocr_module._enhance_warned = False
     ocr_module._ocr_instances.clear()
+    ocr_module._text_cache.clear()
 
 
-def test_low_confidence_enhance_available_better_uses_enhanced():
+def test_low_confidence_enhance_available_better_uses_enhanced(tmp_path):
     """低置信度且增强可用、增强后置信度更高 → 采用增强重识别结果。"""
+    path = tmp_path / "a.jpg"
+    path.write_bytes(b"content-1")
     fake = _FakeOCR([
         [[[None, ("原文本", 0.3)]]],
         [[[None, ("增强文本", 0.9)]]],
@@ -53,20 +57,22 @@ def test_low_confidence_enhance_available_better_uses_enhanced():
             with patch.object(
                 enhance_module, "enhance_image", side_effect=lambda src, dst: dst
             ) as mock_enhance:
-                result = recognize_texts(["a.jpg"], lang="ch")
+                result = recognize_texts([str(path)], lang="ch")
     assert result == ["增强文本"]
     assert mock_enhance.call_count == 1
     src_arg, dst_arg = mock_enhance.call_args[0]
-    assert src_arg == "a.jpg"
+    assert src_arg == str(path)
     assert dst_arg.startswith(config.ENHANCE_OUTPUT_FOLDER)
     assert os.path.basename(dst_arg).endswith(".png")
     stem = os.path.splitext(os.path.basename(dst_arg))[0]
     assert len(stem) == 32 and all(c in "0123456789abcdef" for c in stem)
-    assert fake.calls == ["a.jpg", dst_arg]
+    assert fake.calls == [str(path), dst_arg]
 
 
-def test_low_confidence_enhance_worse_keeps_original():
+def test_low_confidence_enhance_worse_keeps_original(tmp_path):
     """低置信度且增强可用但增强后置信度更低 → 保留原识别结果。"""
+    path = tmp_path / "a.jpg"
+    path.write_bytes(b"content-2")
     fake = _FakeOCR([
         [[[None, ("原文本", 0.5)]]],
         [[[None, ("增强文本", 0.4)]]],
@@ -76,44 +82,50 @@ def test_low_confidence_enhance_worse_keeps_original():
             with patch.object(
                 enhance_module, "enhance_image", side_effect=lambda src, dst: dst
             ) as mock_enhance:
-                result = recognize_texts(["a.jpg"])
+                result = recognize_texts([str(path)])
     assert result == ["原文本"]
     assert mock_enhance.call_count == 1
-    assert fake.calls == ["a.jpg", mock_enhance.call_args[0][1]]
+    assert fake.calls == [str(path), mock_enhance.call_args[0][1]]
 
 
-def test_low_confidence_enhance_unavailable_skips_enhance():
+def test_low_confidence_enhance_unavailable_skips_enhance(tmp_path):
     """低置信度但增强不可用 → 走普通识别，不调用 enhance_image。"""
+    path = tmp_path / "a.jpg"
+    path.write_bytes(b"content-3")
     fake = _FakeOCR([
         [[[None, ("原文本", 0.3)]]],
     ])
     with patch.object(ocr_module, "_load_paddleocr", return_value=fake):
         with patch.object(enhance_module, "is_available", return_value=False):
             with patch.object(enhance_module, "enhance_image") as mock_enhance:
-                result = recognize_texts(["a.jpg"])
+                result = recognize_texts([str(path)])
     assert result == ["原文本"]
     mock_enhance.assert_not_called()
-    assert fake.calls == ["a.jpg"]
+    assert fake.calls == [str(path)]
     assert ocr_module._enhance_warned is True
 
 
-def test_high_confidence_does_not_trigger_enhance():
+def test_high_confidence_does_not_trigger_enhance(tmp_path):
     """高置信度（avg>=0.6）→ 不触发增强。"""
+    path = tmp_path / "a.jpg"
+    path.write_bytes(b"content-4")
     fake = _FakeOCR([
         [[[None, ("清晰文本", 0.9)]]],
     ])
     with patch.object(ocr_module, "_load_paddleocr", return_value=fake):
         with patch.object(enhance_module, "is_available", return_value=True):
             with patch.object(enhance_module, "enhance_image") as mock_enhance:
-                result = recognize_texts(["a.jpg"])
+                result = recognize_texts([str(path)])
     assert result == ["清晰文本"]
     mock_enhance.assert_not_called()
-    assert fake.calls == ["a.jpg"]
+    assert fake.calls == [str(path)]
     assert ocr_module._enhance_warned is False
 
 
-def test_enhance_retry_enhance_step_raises_degrades_to_original():
+def test_enhance_retry_enhance_step_raises_degrades_to_original(tmp_path):
     """增强步骤抛异常 → 降级为原识别结果，不向上抛（备选功能降级）。"""
+    path = tmp_path / "a.jpg"
+    path.write_bytes(b"content-5")
     fake = _FakeOCR([
         [[[None, ("原文本", 0.2)]]],
     ])
@@ -122,12 +134,14 @@ def test_enhance_retry_enhance_step_raises_degrades_to_original():
             with patch.object(
                 enhance_module, "enhance_image", side_effect=RuntimeError("mock enhance fail")
             ):
-                result = recognize_texts(["a.jpg"])
+                result = recognize_texts([str(path)])
     assert result == ["原文本"]
 
 
-def test_enhance_retry_recognition_raises_degrades_to_original():
+def test_enhance_retry_recognition_raises_degrades_to_original(tmp_path):
     """增强后重识别抛异常 → 降级为原识别结果，不向上抛。"""
+    path = tmp_path / "a.jpg"
+    path.write_bytes(b"content-6")
     fake = _FakeOCR([
         [[[None, ("原文本", 0.2)]]],
         RuntimeError("mock re-recognition fail"),
@@ -137,12 +151,16 @@ def test_enhance_retry_recognition_raises_degrades_to_original():
             with patch.object(
                 enhance_module, "enhance_image", side_effect=lambda src, dst: dst
             ):
-                result = recognize_texts(["a.jpg"])
+                result = recognize_texts([str(path)])
     assert result == ["原文本"]
 
 
-def test_multiple_images_enhance_output_written_with_uuid():
+def test_multiple_images_enhance_output_written_with_uuid(tmp_path):
     """多张图顺序识别，增强输出写入 ENHANCE_OUTPUT_FOLDER 且为 uuid4 命名。"""
+    path_a = tmp_path / "a.jpg"
+    path_b = tmp_path / "b.jpg"
+    path_a.write_bytes(b"content-a")
+    path_b.write_bytes(b"content-b")
     fake = _FakeOCR([
         [[[None, ("第一", 0.3)]]],
         [[[None, ("第一增强", 0.9)]]],
@@ -158,11 +176,11 @@ def test_multiple_images_enhance_output_written_with_uuid():
     with patch.object(ocr_module, "_load_paddleocr", return_value=fake):
         with patch.object(enhance_module, "is_available", return_value=True):
             with patch.object(enhance_module, "enhance_image", side_effect=_fake_enhance):
-                result = recognize_texts(["a.jpg", "b.jpg"])
+                result = recognize_texts([str(path_a), str(path_b)])
     assert result == ["第一增强", "第二"]
     assert len(fake.calls) == 3
-    assert fake.calls[0] == "a.jpg"
-    assert fake.calls[2] == "b.jpg"
+    assert fake.calls[0] == str(path_a)
+    assert fake.calls[2] == str(path_b)
     enhance_dst = fake.calls[1]
     assert os.path.dirname(enhance_dst) == config.ENHANCE_OUTPUT_FOLDER
     assert os.path.isfile(enhance_dst)
