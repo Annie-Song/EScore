@@ -29,8 +29,9 @@ import httpx
 # 支持 `python scripts/xxx.py` 直接运行：把项目根加入 sys.path，使 services/utils 可导入
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from services import batch_scoring, scoring
-from utils import config
+from backend.scoring import batch_scoring
+from backend.scoring import engine as scoring
+from backend.core import config
 
 # 默认参考与答案：约 40 字中文句子，贴近单题离线评分真实负载
 REF = "光合作用是指绿色植物利用光能，将二氧化碳和水转化为有机物并释放氧气的过程。"

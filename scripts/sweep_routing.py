@@ -1,11 +1,11 @@
 """路由配置扫描工具（A9）：离线语义粗筛 + 路由阈值的运营点权衡表。
 
-对 A9 评测集每对(标准答案, 三档作答)算一次离线 MiniLM 分（复用 services.scoring.offline_score），
-再遍历候选路由配置逐个模拟路由决策（services.scoring.should_route），输出权衡表：差档捕获/漏判、
+对 A9 评测集每对(标准答案, 三档作答)算一次离线 MiniLM 分（复用 backend.scoring.engine.offline_score），
+再遍历候选路由配置逐个模拟路由决策（backend.scoring.engine.should_route），输出权衡表：差档捕获/漏判、
 优档浪费、总路由率（即 DeepSeek 精排调用成本占比），供调优选运营点。
 
 前置：先运行 scripts/generate_eval_answers.py 生成作答（缓存到 data/eval/answers.json），
-并启动嵌入服务 python -m services.embedding_server。头条指标全程不涉及 DeepSeek 评判自身。
+并启动嵌入服务 python -m servers.embedding.server。头条指标全程不涉及 DeepSeek 评判自身。
 
 用法：
     python scripts/sweep_routing.py                          # 默认扫描阈值 45-95 步进 5
@@ -22,9 +22,9 @@ from pathlib import Path
 # 支持 `python scripts/xxx.py` 直接运行：把项目根加入 sys.path，使 services/utils 可导入
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from services.eval_set import load_generated_cases
-from services.scoring import RoutingConfig, offline_score, resolve_preset, should_route
-from utils import config
+from backend.scoring.eval_set import load_generated_cases
+from backend.scoring.engine import RoutingConfig, offline_score, resolve_preset, should_route
+from backend.core import config
 
 _TIERS = ("good", "medium", "bad")
 

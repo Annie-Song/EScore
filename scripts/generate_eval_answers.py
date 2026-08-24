@@ -20,9 +20,9 @@ from pathlib import Path
 # 支持 `python scripts/xxx.py` 直接运行：把项目根加入 sys.path，使 services/utils 可导入
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from services.deepseek import get_client
-from services.eval_set import load_gaokao_questions
-from utils import config
+from backend.scoring.deepseek import get_client
+from backend.scoring.eval_set import load_gaokao_questions
+from backend.core import config
 
 # 每档作答的生成提示：只输出作答文本，不做质量标注（避免自评污染评测）。
 # 词汇重叠与质量档位同向单调：good 可参照参考答案措辞组织（重叠高），

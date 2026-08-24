@@ -90,10 +90,10 @@ pip install -r requirements.txt
 
 ```
 # 终端 1：向量嵌入微服务（默认 127.0.0.1:8765）
-python -m services.embedding_server
+python -m servers.embedding.server
 
 # 终端 2：OCR 微服务（默认 127.0.0.1:8766）
-python -m services.ocr_server
+python -m servers.ocr.server
 
 # 终端 3：主应用
 python run.py
@@ -103,7 +103,7 @@ python run.py
 
 ## 工程化
 
-单测 524 条，外部依赖（DeepSeek、OCR、向量嵌入）全部 mock、可离线独立运行，命名遵循 `test_功能_场景`。代码按 app/services/utils 分层组织，单个文件不超过约 200 行、模块级公开函数不超过 5 个，约束门禁脚本强制校验。迭代采用两层 Git 分支（版本分支 + 任务分支）与独立实现/测试 agent 分离的开发流程，业务代码由实现 agent 撰写、测试由独立 agent 撰写运行，避免自查自测。
+单测 716 条，外部依赖（DeepSeek、OCR、向量嵌入）全部 mock、可离线独立运行，命名遵循 `test_功能_场景`。代码按 backend/servers/frontend 三层组织：backend/ 按功能域拆包（core/auth/bank/school/scoring/ocr/batch/stats/grading/pay/infra，routes+services+store 同置），servers/ 收纳独立微服务进程（embedding/、ocr/），frontend/ 收拢模板与静态资源实现目录级前后端分离，tests/ 按功能域分子目录。单个文件不超过约 200 行、模块级公开函数不超过 5 个，约束门禁脚本强制校验。迭代采用两层 Git 分支（版本分支 + 任务分支）与独立实现/测试 agent 分离的开发流程，业务代码由实现 agent 撰写、测试由独立 agent 撰写运行，避免自查自测。
 
 ## 训练数据来源
 
