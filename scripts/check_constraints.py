@@ -6,12 +6,12 @@
 3. 类公开方法超过阈值（默认 8）仅警告：数据访问/接口类（如 GradeStore 十方法）
    属可接受例外，人工确认即可，不阻断交付。
 
-扫描范围默认 app/、services/、utils/（业务代码，tests/ 用例文件不计入函数约束），
+扫描范围默认 backend/、servers/（业务代码与微服务，tests/ 用例文件不计入函数约束），
 可在命令行用 --dirs 覆盖。退出码：0=通过（警告不影响），1=存在硬约束违规。
 
 用法：
     python scripts/check_constraints.py
-    python scripts/check_constraints.py --dirs app services
+    python scripts/check_constraints.py --dirs backend servers
 """
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ import sys
 from pathlib import Path
 
 # 默认扫描的业务目录（相对项目根）
-_DEFAULT_DIRS = ("app", "services", "utils")
+_DEFAULT_DIRS = ("backend", "servers")
 
 
 def _is_public(name: str) -> bool:
@@ -85,7 +85,7 @@ def main(argv: list[str] | None = None) -> int:
         "--dirs",
         nargs="+",
         default=list(_DEFAULT_DIRS),
-        help="扫描的业务目录，默认 app services utils",
+        help="扫描的业务目录，默认 backend servers",
     )
     parser.add_argument("--max-lines", type=int, default=200, help="单文件行数上限")
     parser.add_argument("--max-funcs", type=int, default=5, help="模块级公开函数上限")
