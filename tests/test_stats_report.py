@@ -1,7 +1,7 @@
-"""统计报告渲染 services.stats_report 单元测试（HTML 与 Word）。"""
+"""统计报告渲染 backend.stats.report 单元测试（HTML 与 Word）。"""
 from docx import Document
 
-from services.stats_report import build_stats_docx, build_stats_html
+from backend.stats.report import build_stats_docx, build_stats_html
 
 
 def _sample_stats(**overrides) -> dict:

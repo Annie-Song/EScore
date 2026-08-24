@@ -13,12 +13,12 @@ from typing import Any
 
 import pytest
 
-import app.me_routes as me_routes
-from app import create_app
-from services import auth
-from services.sqlite_store import SqliteGradeStore
-from services.store import BATCH_STATUS_RUNNING, BATCH_STATUS_SUCCEEDED, GradeRecord
-from services.user_activity_store import UserActivityStore
+import backend.auth.me_routes as me_routes
+from backend.app import create_app
+from backend.auth import session as auth
+from backend.batch.record_store import SqliteGradeStore
+from backend.batch.store import BATCH_STATUS_RUNNING, BATCH_STATUS_SUCCEEDED, GradeRecord
+from backend.batch.user_activity_store import UserActivityStore
 
 USER_ID = "u-1"
 

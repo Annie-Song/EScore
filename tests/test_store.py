@@ -7,8 +7,8 @@ import sqlite3
 
 import pytest
 
-from services.sqlite_store import SqliteGradeStore
-from services.store import (
+from backend.batch.record_store import SqliteGradeStore
+from backend.batch.store import (
     BATCH_STATUS_RUNNING,
     BATCH_STATUS_SUCCEEDED,
     GradeRecord,
@@ -174,8 +174,8 @@ def test_stats_by_category_count_descending_and_avg(tmp_path):
 
 
 def test_default_store_returns_same_singleton_sqlite_store(monkeypatch, tmp_path):
-    from services import sqlite_store as sqlite_module
-    from services import store as store_module
+    from backend.batch import record_store as sqlite_module
+    from backend.batch import store as store_module
 
     db_path = str(tmp_path / "singleton.db")
     monkeypatch.setattr(store_module, "_store", None)

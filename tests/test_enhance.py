@@ -10,14 +10,14 @@ import numpy as np
 import pytest
 import torch
 
-import services.enhance as enhance_module
-from services import enhance
+import servers.ocr.enhance as enhance_module
+from servers.ocr import enhance
 
 
 class _FakeCallableModel:
     """可调用假模型：forward 返回 4x 尺寸的零张量，模拟 ESRGAN 超分前向。
 
-    services.enhance 使用 model(img_lr) 调用，故需要 __call__ 而非 forward。
+    servers.ocr.enhance 使用 model(img_lr) 调用，故需要 __call__ 而非 forward。
     """
 
     def __call__(self, x: torch.Tensor) -> torch.Tensor:
@@ -38,7 +38,7 @@ def _reset_enhance_state():
 def test_is_available_weights_missing_returns_false_without_raise(tmp_path):
     """权重文件缺失时 is_available 返回 False 且不抛异常。"""
     missing_path = str(tmp_path / "no_such_RRDB_ESRGAN_x4.pth")
-    with patch("utils.config.ENHANCE_WEIGHTS_PATH", missing_path):
+    with patch("backend.core.config.ENHANCE_WEIGHTS_PATH", missing_path):
         assert enhance.is_available() is False
     assert enhance_module._model is None
     assert enhance_module._load_warned is True
@@ -47,7 +47,7 @@ def test_is_available_weights_missing_returns_false_without_raise(tmp_path):
 def test_enhance_image_model_unavailable_raises_runtime_error(tmp_path):
     """模型不可用时 enhance_image 抛 RuntimeError，消息含“ESRGAN 模型不可用”。"""
     missing_path = str(tmp_path / "missing_model.pth")
-    with patch("utils.config.ENHANCE_WEIGHTS_PATH", missing_path):
+    with patch("backend.core.config.ENHANCE_WEIGHTS_PATH", missing_path):
         with pytest.raises(RuntimeError, match="ESRGAN 模型不可用"):
             enhance.enhance_image("src.png", "dst.png")
 
@@ -87,7 +87,7 @@ def test_load_failure_keeps_none_and_retry_succeeds(tmp_path):
     weights = tmp_path / "model.pth"
     weights.write_bytes(b"fake-weights")
     fake_state = {"weight": "fake"}
-    with patch("utils.config.ENHANCE_WEIGHTS_PATH", str(weights)):
+    with patch("backend.core.config.ENHANCE_WEIGHTS_PATH", str(weights)):
         with patch.object(
             enhance_module.torch, "load", side_effect=[RuntimeError("corrupt file"), fake_state]
         ):

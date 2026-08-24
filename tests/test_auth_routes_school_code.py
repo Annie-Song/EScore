@@ -2,7 +2,7 @@
 
 覆盖 POST /api/auth/register 的 school_code 字段：合法 code 写入
 school_id、非法 code 返回 400、缺省 school_id 为 None。
-mock 目标取调用方命名空间：app.auth_routes.default_school_store /
+mock 目标取调用方命名空间：backend.auth.routes.default_school_store /
 default_user_store 均为模块级绑定，替换 auth_routes 上的同名引用。
 """
 from __future__ import annotations
@@ -12,10 +12,10 @@ from typing import Any
 
 import pytest
 
-import app.auth_routes as auth_routes
-from app import create_app
-from services.school_store import SchoolStore
-from services.user_store import UserStore
+import backend.auth.routes as auth_routes
+from backend.app import create_app
+from backend.school.store import SchoolStore
+from backend.auth.store import UserStore
 
 
 @pytest.fixture

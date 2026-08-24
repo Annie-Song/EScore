@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-INDEX_HTML_PATH = PROJECT_ROOT / "templates" / "index.html"
+INDEX_HTML_PATH = PROJECT_ROOT / "frontend" / "templates" / "index.html"
 
 
 def _read_index_html() -> str:

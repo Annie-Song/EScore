@@ -8,10 +8,10 @@ from __future__ import annotations
 
 import pytest
 
-from app import create_app
-from services.question_bank import BankQuestion
-from services.question_bank_store import QuestionBankStore
-from utils import config
+from backend.app import create_app
+from backend.bank.model import BankQuestion
+from backend.bank.store import QuestionBankStore
+from backend.core import config
 
 _GRADE = config.QUESTION_BANK_GRADE
 
@@ -292,7 +292,7 @@ def test_无auth仅全局可见(school_bank_client) -> None:
 def test_search_本校可见全局加本校(school_bank_client, monkeypatch) -> None:
     """patch current_user 返回 schA 用户后，search 返回全局+本校，排除他校题。"""
     monkeypatch.setattr(
-        "services.auth.current_user",
+        "backend.auth.session.current_user",
         lambda: {"id": "u-teacherA", "school_id": "schA",
                  "role": "teacher", "plan": "free"},
     )
@@ -308,7 +308,7 @@ def test_search_本校可见全局加本校(school_bank_client, monkeypatch) -> 
 def test_search_他校不可见(school_bank_client, monkeypatch) -> None:
     """patch current_user 返回 schB 用户后，search 排除 schA 校题。"""
     monkeypatch.setattr(
-        "services.auth.current_user",
+        "backend.auth.session.current_user",
         lambda: {"id": "u-teacherB", "school_id": "schB",
                  "role": "teacher", "plan": "free"},
     )
@@ -324,7 +324,7 @@ def test_search_他校不可见(school_bank_client, monkeypatch) -> None:
 def test_facets_本校包含本校计数(school_bank_client, monkeypatch) -> None:
     """patch current_user 返回 schA 用户后，facets 科目计数含本校校题。"""
     monkeypatch.setattr(
-        "services.auth.current_user",
+        "backend.auth.session.current_user",
         lambda: {"id": "u-teacherA", "school_id": "schA",
                  "role": "teacher", "plan": "free"},
     )
@@ -336,7 +336,7 @@ def test_facets_本校包含本校计数(school_bank_client, monkeypatch) -> Non
 def test_详情_本校校题200_跨校404(school_bank_client, monkeypatch) -> None:
     """本校校题详情 200；他校用户访问该题 404；全局题任意用户均 200。"""
     monkeypatch.setattr(
-        "services.auth.current_user",
+        "backend.auth.session.current_user",
         lambda: {"id": "u-teacherA", "school_id": "schA",
                  "role": "teacher", "plan": "free"},
     )
@@ -346,7 +346,7 @@ def test_详情_本校校题200_跨校404(school_bank_client, monkeypatch) -> No
 
     # 他校用户访问 schA 校题 → 404
     monkeypatch.setattr(
-        "services.auth.current_user",
+        "backend.auth.session.current_user",
         lambda: {"id": "u-teacherB", "school_id": "schB",
                  "role": "teacher", "plan": "free"},
     )

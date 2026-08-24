@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from services.scoring import RoutingConfig, resolve_preset, should_route
+from backend.scoring.engine import RoutingConfig, resolve_preset, should_route
 
 
 def test_routing_config_frozen_dataclass_has_preset_defaults():
@@ -89,8 +89,8 @@ def test_should_route_explicit_unknown_mode_never_routes():
 
 def test_should_route_default_reads_module_threshold_constants():
     """缺省 routing 读模块级常量（回归：patch ROUTING_MODE/LOW_THRESHOLD 后按 patch 值决策）。"""
-    with patch("services.scoring.ROUTING_MODE", "threshold"), \
-         patch("services.scoring.LOW_THRESHOLD", 70.0):
+    with patch("backend.scoring.engine.ROUTING_MODE", "threshold"), \
+         patch("backend.scoring.engine.LOW_THRESHOLD", 70.0):
         # 65 < 70（patch 值）应路由；若误用类默认值 60.0 则 65 >= 60 不路由
         assert should_route(65.0) is True
         assert should_route(70.0) is False
@@ -98,9 +98,9 @@ def test_should_route_default_reads_module_threshold_constants():
 
 def test_should_route_default_reads_module_band_constants():
     """缺省 routing 读模块级 BAND_* 常量。"""
-    with patch("services.scoring.ROUTING_MODE", "band"), \
-         patch("services.scoring.BAND_LOW", 30.0), \
-         patch("services.scoring.BAND_HIGH", 90.0):
+    with patch("backend.scoring.engine.ROUTING_MODE", "band"), \
+         patch("backend.scoring.engine.BAND_LOW", 30.0), \
+         patch("backend.scoring.engine.BAND_HIGH", 90.0):
         assert should_route(50.0) is True
         assert should_route(29.9) is False
         assert should_route(90.1) is False

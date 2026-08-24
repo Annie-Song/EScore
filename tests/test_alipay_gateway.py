@@ -17,8 +17,8 @@ from typing import Any
 
 import pytest
 
-from services.alipay_gateway import AlipaySandboxGateway
-from utils import config
+from backend.pay.alipay import AlipaySandboxGateway
+from backend.core import config
 
 # 启用的三个必需配置项键名（缺省空串即未配置）
 _CONFIG_KEYS = ("ALIPAY_APP_ID", "ALIPAY_PRIVATE_KEY", "ALIPAY_PUBLIC_KEY")

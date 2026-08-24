@@ -5,8 +5,8 @@
 """
 import pytest
 
-from services import question_bank_tags as tags
-from utils import config
+from backend.bank import tags
+from backend.core import config
 
 # 真实 GAOKAO-Bench 主观题全量文件名 → 期望中文科目（Data/Subjective_Questions）
 _SUBJECTIVE_FILENAMES = [

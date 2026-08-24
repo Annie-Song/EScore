@@ -14,14 +14,14 @@ from __future__ import annotations
 
 import pytest
 
-import services.alipay_gateway as alipay_gateway
-from services.payment import (
+import backend.pay.alipay as alipay_gateway
+from backend.pay.gateway import (
     LocalDemoGateway,
     PaymentGateway,
     _demo_token,
     get_active_gateway,
 )
-from utils import config
+from backend.core import config
 
 
 class _FakeAlipayGateway:

@@ -1,6 +1,6 @@
 """services/ocr_core.py 低置信度 ESRGAN 增强重识别单元测试。
 
-通过 mock services.enhance.is_available / enhance_image（真实权重不存在），
+通过 mock servers.ocr.enhance.is_available / enhance_image（真实权重不存在），
 并用假 PaddleOCR 控制每次识别返回的 (text, score)，全程离线独立运行。
 """
 import os
@@ -9,10 +9,10 @@ from unittest.mock import patch
 
 import pytest
 
-import services.enhance as enhance_module
-import services.ocr_core as ocr_module
-from services.ocr_core import recognize_texts
-from utils import config
+import servers.ocr.enhance as enhance_module
+import servers.ocr.core as ocr_module
+from servers.ocr.core import recognize_texts
+from backend.core import config
 
 
 class _FakeOCR:

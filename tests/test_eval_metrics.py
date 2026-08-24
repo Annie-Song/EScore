@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from services.eval_metrics import (
+from backend.scoring.eval_metrics import (
     _char_ngrams,
     length_ratio,
     lexical_dice,

@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 import benchmark_eval  # noqa: E402
 
-from services.eval_set import GeneratedCase  # noqa: E402
+from backend.scoring.eval_set import GeneratedCase  # noqa: E402
 
 
 def test_auc_完美分离():

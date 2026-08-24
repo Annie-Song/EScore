@@ -1,7 +1,7 @@
 """批量批改任务注册表单元测试。"""
 import pytest
 
-import services.task_store as task_store
+import backend.batch.task_store as task_store
 
 
 @pytest.fixture(autouse=True)

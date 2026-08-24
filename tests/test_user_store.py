@@ -9,7 +9,7 @@ import sqlite3
 
 import pytest
 
-from services.user_store import UserStore
+from backend.auth.store import UserStore
 
 
 @pytest.fixture

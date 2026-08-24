@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from services.user_activity_store import UserActivityStore
+from backend.batch.user_activity_store import UserActivityStore
 
 
 @pytest.fixture

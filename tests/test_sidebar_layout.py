@@ -17,10 +17,10 @@ from typing import Any
 
 import pytest
 
-from app import create_app
+from backend.app import create_app
 
 _BASE_DIR = Path(__file__).resolve().parent.parent
-_TEMPLATE_DIR = _BASE_DIR / "templates"
+_TEMPLATE_DIR = _BASE_DIR / "frontend" / "templates"
 
 # 五个导航链接：href → 链接文本
 _NAV_LINKS: dict[str, str] = {

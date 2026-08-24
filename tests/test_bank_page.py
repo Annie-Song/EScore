@@ -13,11 +13,11 @@ from typing import Any
 
 import pytest
 
-from app import create_app
+from backend.app import create_app
 
 # 项目根目录 = 本文件（tests/test_bank_page.py）上上级
 _BASE_DIR = Path(__file__).resolve().parent.parent
-_TEMPLATE_DIR = _BASE_DIR / "templates"
+_TEMPLATE_DIR = _BASE_DIR / "frontend" / "templates"
 
 
 def _read_template(name: str) -> str:
@@ -42,7 +42,7 @@ def test_bank路由渲染200(client: Any) -> None:
 
 def test_bank路由_不触库(monkeypatch: pytest.MonkeyPatch) -> None:
     """/bank 仅渲染模板、不实例化题库存储，题库库文件缺失也不影响 200。"""
-    from services import question_bank_store
+    from backend.bank import store as question_bank_store
 
     def _block_init(*args, **kwargs):  # noqa: ANN002, ANN003
         raise AssertionError("bank_page 不应实例化 QuestionBankStore")
@@ -102,7 +102,7 @@ def test_bank模板_主题开关存在() -> None:
     """主题切换控件随重构移入 base.html，data-theme/localStorage 逻辑移入 static/app.js。"""
     base_html = _read_template("base.html")
     assert 'id="themeToggle"' in base_html
-    js = (_BASE_DIR / "static" / "app.js").read_text(encoding="utf-8")
+    js = (_BASE_DIR / "frontend" / "static" / "app.js").read_text(encoding="utf-8")
     assert "data-theme" in js
     assert "localStorage" in js
     assert '"theme"' in js
@@ -158,7 +158,7 @@ def test_其他路由未破坏(client: Any) -> None:
 
 def test_公开路由数约束() -> None:
     """bank_routes.py 模块级公开函数数 ≤5，当前应为 4。"""
-    source = (_BASE_DIR / "app" / "bank_routes.py").read_text(encoding="utf-8")
+    source = (_BASE_DIR / "backend" / "bank" / "routes.py").read_text(encoding="utf-8")
     tree = ast.parse(source)
     public = [
         node.name

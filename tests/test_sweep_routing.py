@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 import sweep_routing  # noqa: E402
 
-from services.eval_set import GeneratedCase  # noqa: E402
+from backend.scoring.eval_set import GeneratedCase  # noqa: E402
 
 
 @pytest.mark.parametrize(

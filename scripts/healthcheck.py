@@ -23,7 +23,7 @@ import httpx
 # 支持 `python scripts/healthcheck.py` 直接运行：把项目根加入 sys.path，使 utils 可导入
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from utils import config
+from backend.core import config
 
 # 主应用默认地址，可用环境变量 MAIN_APP_URL 覆盖（默认与 run.bat 启动端口一致）
 _MAIN_APP_URL = os.environ.get("MAIN_APP_URL", "http://127.0.0.1:5000")

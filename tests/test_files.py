@@ -1,7 +1,7 @@
 """文件处理工具单元测试。"""
 from unittest.mock import MagicMock
 
-from utils.files import allowed_file, save_upload
+from backend.core.files import allowed_file, save_upload
 
 
 def test_allowed_file_accepts_jpg():

@@ -10,7 +10,7 @@ import cv2
 import numpy as np
 import pytest
 
-from services import segment
+from servers.ocr import segment
 
 _WHITE = 255
 _BLACK = 0

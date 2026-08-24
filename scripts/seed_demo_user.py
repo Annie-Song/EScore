@@ -16,8 +16,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from werkzeug.security import generate_password_hash
 
-from services.school_store import SchoolStore, default_school_store
-from services.user_store import UserStore, default_user_store
+from backend.school.store import SchoolStore, default_school_store
+from backend.auth.store import UserStore, default_user_store
 
 # 演示学校固定标识：code 唯一，school_id 用固定值保证幂等可复用
 _DEMO_SCHOOL_ID = "school-demo"

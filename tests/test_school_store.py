@@ -3,7 +3,7 @@
 覆盖 create_school/get_school/get_school_by_code/list_schools（含
 member_count 联查）与 school_batch_stats 聚合；code 唯一冲突抛
 sqlite3.IntegrityError。school_batch_stats 联查 grades.db 的
-default_store 按调用方命名空间 patch：services.school_store.default_store。
+default_store 按调用方命名空间 patch：backend.school.store.default_store。
 
 全部用例用 tmp_path 构造临时 db（users.db 与 grades.db 均隔离），离线运行。
 """
@@ -13,12 +13,12 @@ import sqlite3
 
 import pytest
 
-import services.school_store as school_store
-from services.school_store import SchoolStore
-from services.sqlite_store import SqliteGradeStore
-from services.store import BATCH_STATUS_SUCCEEDED, GradeRecord
-from services.user_activity_store import UserActivityStore
-from services.user_store import UserStore
+import backend.school.store as school_store
+from backend.school.store import SchoolStore
+from backend.batch.record_store import SqliteGradeStore
+from backend.batch.store import BATCH_STATUS_SUCCEEDED, GradeRecord
+from backend.batch.user_activity_store import UserActivityStore
+from backend.auth.store import UserStore
 
 
 @pytest.fixture

@@ -6,10 +6,10 @@
 """
 from pathlib import Path
 
-from app import create_app
+from backend.app import create_app
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-BATCH_HTML_PATH = PROJECT_ROOT / "templates" / "batch.html"
+BATCH_HTML_PATH = PROJECT_ROOT / "frontend" / "templates" / "batch.html"
 
 
 def _read_batch_html() -> str:

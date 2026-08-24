@@ -1,7 +1,7 @@
 """报告生成模块单元测试（HTML 与 Word 两种报告）。"""
 from docx import Document
 
-from services.report import build_report_docx, build_report_html
+from backend.grading.report import build_report_docx, build_report_html
 
 
 def _sample_data(**overrides):

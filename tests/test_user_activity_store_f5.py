@@ -6,7 +6,7 @@
 """
 from __future__ import annotations
 
-from services.user_activity_store import UserActivityStore
+from backend.batch.user_activity_store import UserActivityStore
 
 
 def test_list_all_batches_returns_all_users_desc(

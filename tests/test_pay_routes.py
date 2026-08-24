@@ -17,12 +17,12 @@ from typing import Any
 
 import pytest
 
-import app.pay_routes as pay_routes
-from app import create_app
-from services.payment import _demo_token
-from services.payment_store import PaymentStore
-from services.user_store import UserStore
-from utils import config
+import backend.pay.routes as pay_routes
+from backend.app import create_app
+from backend.pay.gateway import _demo_token
+from backend.pay.store import PaymentStore
+from backend.auth.store import UserStore
+from backend.core import config
 
 USER_ID = "u-pay-1"
 _ALIPAY_KEYS = ("ALIPAY_APP_ID", "ALIPAY_PRIVATE_KEY", "ALIPAY_PUBLIC_KEY")

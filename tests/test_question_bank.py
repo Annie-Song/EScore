@@ -7,14 +7,14 @@ import json
 
 import pytest
 
-from services import question_bank
-from services.question_bank import (
+from backend.bank import model as question_bank
+from backend.bank.model import (
     BankQuestion,
     build_gpt4_difficulty_map,
     iter_gaokao_bank,
     parse_questions_from_file,
 )
-from utils import config
+from backend.core import config
 
 
 def _write_json(path, payload: dict) -> None:

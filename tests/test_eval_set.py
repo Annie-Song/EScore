@@ -8,8 +8,8 @@ import json
 
 import pytest
 
-from services import eval_set
-from services.eval_set import GeneratedCase, load_gaokao_questions, load_generated_cases
+from backend.scoring import eval_set
+from backend.scoring.eval_set import GeneratedCase, load_gaokao_questions, load_generated_cases
 
 
 def _make_question(index: int, question: str, answer: str) -> dict:

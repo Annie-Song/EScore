@@ -5,7 +5,7 @@ import os
 
 import pytest
 
-from app import create_app
+from backend.app import create_app
 
 
 @pytest.fixture
@@ -40,7 +40,7 @@ def test_download_report_html_returns_200_with_attachment(client):
 
 
 def test_download_report_docx_returns_200_with_docx_content(client, monkeypatch, tmp_path):
-    monkeypatch.setattr("app.routes.REPORT_FOLDER", str(tmp_path / "reports"))
+    monkeypatch.setattr("backend.grading.routes.REPORT_FOLDER", str(tmp_path / "reports"))
     resp = client.post("/download_report", json=_payload(format="docx"))
     assert resp.status_code == 200
     assert "wordprocessingml" in resp.content_type

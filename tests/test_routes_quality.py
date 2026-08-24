@@ -2,7 +2,7 @@
 import pytest
 from unittest.mock import patch
 
-from app import create_app
+from backend.app import create_app
 
 
 @pytest.fixture
@@ -32,7 +32,7 @@ def _full_result(score: float = 88.5, method: str = "online",
 
 def test_compare_texts_default_no_quality_passes_fast(client):
     """缺省无 quality 字段 → grade_answer 收到 quality_mode='fast'。"""
-    with patch("app.routes.grade_answer", return_value=_full_result()) as mock_grade:
+    with patch("backend.grading.routes.grade_answer", return_value=_full_result()) as mock_grade:
         resp = client.post("/compare_texts", json=_payload())
     assert resp.status_code == 200
     mock_grade.assert_called_once()
@@ -41,7 +41,7 @@ def test_compare_texts_default_no_quality_passes_fast(client):
 
 def test_compare_texts_quality_quality_passes_quality(client):
     """quality='quality' → grade_answer 收到 quality_mode='quality'。"""
-    with patch("app.routes.grade_answer", return_value=_full_result()) as mock_grade:
+    with patch("backend.grading.routes.grade_answer", return_value=_full_result()) as mock_grade:
         resp = client.post("/compare_texts", json=_payload(quality="quality"))
     assert resp.status_code == 200
     mock_grade.assert_called_once()
@@ -50,7 +50,7 @@ def test_compare_texts_quality_quality_passes_quality(client):
 
 def test_compare_texts_empty_quality_falls_back_to_fast(client):
     """quality='' 空串回退默认 fast（与 /batch_grade 行为一致），不报 400。"""
-    with patch("app.routes.grade_answer", return_value=_full_result()) as mock_grade:
+    with patch("backend.grading.routes.grade_answer", return_value=_full_result()) as mock_grade:
         resp = client.post("/compare_texts", json=_payload(quality=""))
     assert resp.status_code == 200
     mock_grade.assert_called_once()
@@ -59,7 +59,7 @@ def test_compare_texts_empty_quality_falls_back_to_fast(client):
 
 def test_compare_texts_invalid_quality_returns_400(client):
     """quality='garbage' → 400 且 message 含未知评分质量，grade_answer 不被调用。"""
-    with patch("app.routes.grade_answer") as mock_grade:
+    with patch("backend.grading.routes.grade_answer") as mock_grade:
         resp = client.post("/compare_texts", json=_payload(quality="garbage"))
     assert resp.status_code == 400
     message = resp.get_json()["message"]
@@ -71,7 +71,7 @@ def test_compare_texts_invalid_quality_returns_400(client):
 def test_compare_texts_result_structure_preserved(client):
     """返回结构 score/method/degraded/routed 不被 quality 破坏。"""
     result = _full_result(score=90.0, method="online", degraded=False, routed=True)
-    with patch("app.routes.grade_answer", return_value=result):
+    with patch("backend.grading.routes.grade_answer", return_value=result):
         resp = client.post("/compare_texts", json=_payload(quality="quality"))
     assert resp.status_code == 200
     assert resp.get_json() == result
@@ -79,7 +79,7 @@ def test_compare_texts_result_structure_preserved(client):
 
 def test_compare_texts_force_online_and_quality_both_passed(client):
     """forceOnline=True 与 quality='quality' 同时透传给 grade_answer。"""
-    with patch("app.routes.grade_answer", return_value=_full_result()) as mock_grade:
+    with patch("backend.grading.routes.grade_answer", return_value=_full_result()) as mock_grade:
         resp = client.post(
             "/compare_texts", json=_payload(forceOnline=True, quality="quality")
         )

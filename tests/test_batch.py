@@ -2,9 +2,9 @@
 import pytest
 from unittest.mock import patch
 
-import services.task_store as task_store
-from services.batch import run_batch_job
-from utils import config as config_module
+import backend.batch.task_store as task_store
+from backend.batch.pipeline import run_batch_job
+from backend.core import config as config_module
 
 _SEGMENT_REGIONS = [
     {"index": 1, "bbox": (0, 0, 10, 20)},
@@ -83,18 +83,18 @@ def test_run_batch_job_segmented_writes_four_records(image_files, tmp_path, monk
     task_id = task_store.create_task(2)
     monkeypatch.setattr(config_module, "SEGMENT_OUTPUT_FOLDER", str(tmp_path / "segments"))
 
-    with patch("services.batch.recognize_texts",
+    with patch("backend.batch.pipeline.recognize_texts",
                side_effect=_fake_recognize(image_files["reference"], "参考答案文本", "作业区域文本")), \
-         patch("services.batch.default_store", return_value=store), \
-         patch("services.ocr.segment_image", return_value=_SEGMENT_REGIONS), \
-         patch("services.ocr.crop_region") as mock_crop, \
-         patch("services.ocr.regions_with_shared_enhance", return_value=None), \
-         patch("services.batch_scoring.grade_batch", side_effect=[
+         patch("backend.batch.pipeline.default_store", return_value=store), \
+         patch("backend.ocr.client.segment_image", return_value=_SEGMENT_REGIONS), \
+         patch("backend.ocr.client.crop_region") as mock_crop, \
+         patch("backend.ocr.client.regions_with_shared_enhance", return_value=None), \
+         patch("backend.scoring.batch_scoring.grade_batch", side_effect=[
              [_result(80.0), _result(90.0, method="online", routed=True)],
              [_result(70.0), _result(85.0)],
          ]), \
-         patch("services.error_category.classify_error", return_value=("要点遗漏", "理由")) as mock_classify, \
-         patch("services.batch.update_task", wraps=task_store.update_task):
+         patch("backend.scoring.error_category.classify_error", return_value=("要点遗漏", "理由")) as mock_classify, \
+         patch("backend.batch.pipeline.update_task", wraps=task_store.update_task):
         run_batch_job(task_id, image_files["reference"], image_files["works"],
                       lang="ch", enable_segment=True, error_ai_mode=False)
 
@@ -123,15 +123,15 @@ def test_run_batch_job_without_segment_one_record_per_work(image_files):
     store = _FakeStore()
     task_id = task_store.create_task(2)
 
-    with patch("services.batch.recognize_texts",
+    with patch("backend.batch.pipeline.recognize_texts",
                side_effect=_fake_recognize(image_files["reference"], "参考答案文本", "整图文本")), \
-         patch("services.batch.default_store", return_value=store), \
-         patch("services.batch_scoring.grade_batch", side_effect=[
+         patch("backend.batch.pipeline.default_store", return_value=store), \
+         patch("backend.scoring.batch_scoring.grade_batch", side_effect=[
              [_result(70.0)],
              [_result(75.0)],
          ]), \
-         patch("services.error_category.classify_error", return_value=("部分正确", "")), \
-         patch("services.batch.update_task", wraps=task_store.update_task):
+         patch("backend.scoring.error_category.classify_error", return_value=("部分正确", "")), \
+         patch("backend.batch.pipeline.update_task", wraps=task_store.update_task):
         run_batch_job(task_id, image_files["reference"], image_files["works"],
                       lang="ch", enable_segment=False, error_ai_mode=False)
 
@@ -151,11 +151,11 @@ def test_run_batch_job_empty_reference_skips_grade_batch(image_files):
     def empty_recognize(image_paths, lang="ch"):
         return [""]
 
-    with patch("services.batch.recognize_texts", side_effect=empty_recognize), \
-         patch("services.batch.default_store", return_value=store), \
-         patch("services.batch_scoring.grade_batch") as mock_grade, \
-         patch("services.error_category.classify_error", return_value=("未作答", "")) as mock_classify, \
-         patch("services.batch.update_task", wraps=task_store.update_task):
+    with patch("backend.batch.pipeline.recognize_texts", side_effect=empty_recognize), \
+         patch("backend.batch.pipeline.default_store", return_value=store), \
+         patch("backend.scoring.batch_scoring.grade_batch") as mock_grade, \
+         patch("backend.scoring.error_category.classify_error", return_value=("未作答", "")) as mock_classify, \
+         patch("backend.batch.pipeline.update_task", wraps=task_store.update_task):
         run_batch_job(task_id, image_files["reference"], image_files["works"],
                       lang="ch", enable_segment=False, error_ai_mode=False)
 
@@ -182,9 +182,9 @@ def test_run_batch_job_exception_marks_failed_and_reraises(image_files):
             return ["参考答案文本"]
         raise RuntimeError("OCR 失败")
 
-    with patch("services.batch.recognize_texts", side_effect=failing_recognize), \
-         patch("services.batch.default_store", return_value=store), \
-         patch("services.batch.update_task", wraps=task_store.update_task):
+    with patch("backend.batch.pipeline.recognize_texts", side_effect=failing_recognize), \
+         patch("backend.batch.pipeline.default_store", return_value=store), \
+         patch("backend.batch.pipeline.update_task", wraps=task_store.update_task):
         with pytest.raises(RuntimeError, match="OCR 失败"):
             run_batch_job(task_id, ref_path, image_files["works"],
                           lang="ch", enable_segment=False, error_ai_mode=False)
@@ -202,13 +202,13 @@ def test_run_batch_job_progress_tracks_current_item(image_files):
     store = _FakeStore()
     task_id = task_store.create_task(2)
 
-    with patch("services.batch.recognize_texts",
+    with patch("backend.batch.pipeline.recognize_texts",
                side_effect=_fake_recognize(image_files["reference"], "参考答案文本", "文本")), \
-         patch("services.batch.default_store", return_value=store), \
-         patch("services.batch_scoring.grade_batch",
+         patch("backend.batch.pipeline.default_store", return_value=store), \
+         patch("backend.scoring.batch_scoring.grade_batch",
                return_value=[_result(60.0)]), \
-         patch("services.error_category.classify_error", return_value=("部分正确", "")), \
-         patch("services.batch.update_task", wraps=task_store.update_task) as mock_update:
+         patch("backend.scoring.error_category.classify_error", return_value=("部分正确", "")), \
+         patch("backend.batch.pipeline.update_task", wraps=task_store.update_task) as mock_update:
         run_batch_job(task_id, image_files["reference"], image_files["works"],
                       lang="ch", enable_segment=False, error_ai_mode=False)
 
@@ -225,12 +225,12 @@ def test_run_batch_job_passes_quality_mode_to_grade_batch(image_files):
     store = _FakeStore()
     task_id = task_store.create_task(len(image_files["works"]))
 
-    with patch("services.batch.recognize_texts",
+    with patch("backend.batch.pipeline.recognize_texts",
                side_effect=_fake_recognize(image_files["reference"], "参考答案文本", "整图文本")), \
-         patch("services.batch.default_store", return_value=store), \
-         patch("services.batch_scoring.grade_batch", return_value=[_result(70.0)]) as mock_grade, \
-         patch("services.error_category.classify_error", return_value=("部分正确", "")), \
-         patch("services.batch.update_task", wraps=task_store.update_task):
+         patch("backend.batch.pipeline.default_store", return_value=store), \
+         patch("backend.scoring.batch_scoring.grade_batch", return_value=[_result(70.0)]) as mock_grade, \
+         patch("backend.scoring.error_category.classify_error", return_value=("部分正确", "")), \
+         patch("backend.batch.pipeline.update_task", wraps=task_store.update_task):
         run_batch_job(task_id, image_files["reference"], image_files["works"],
                       lang="ch", enable_segment=False, error_ai_mode=False,
                       quality_mode="quality")
@@ -245,12 +245,12 @@ def test_run_batch_job_default_quality_mode_is_fast(image_files):
     store = _FakeStore()
     task_id = task_store.create_task(len(image_files["works"]))
 
-    with patch("services.batch.recognize_texts",
+    with patch("backend.batch.pipeline.recognize_texts",
                side_effect=_fake_recognize(image_files["reference"], "参考答案文本", "整图文本")), \
-         patch("services.batch.default_store", return_value=store), \
-         patch("services.batch_scoring.grade_batch", return_value=[_result(70.0)]) as mock_grade, \
-         patch("services.error_category.classify_error", return_value=("部分正确", "")), \
-         patch("services.batch.update_task", wraps=task_store.update_task):
+         patch("backend.batch.pipeline.default_store", return_value=store), \
+         patch("backend.scoring.batch_scoring.grade_batch", return_value=[_result(70.0)]) as mock_grade, \
+         patch("backend.scoring.error_category.classify_error", return_value=("部分正确", "")), \
+         patch("backend.batch.pipeline.update_task", wraps=task_store.update_task):
         run_batch_job(task_id, image_files["reference"], image_files["works"],
                       lang="ch", enable_segment=False, error_ai_mode=False)
 

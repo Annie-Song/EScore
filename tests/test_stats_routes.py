@@ -1,10 +1,10 @@
 """统计查询与统计报告 Flask 路由单元测试。"""
 import pytest
 
-import app.stats_routes as stats_routes
-from app import create_app
-from services.sqlite_store import SqliteGradeStore
-from services.store import BATCH_STATUS_SUCCEEDED, GradeRecord
+import backend.stats.routes as stats_routes
+from backend.app import create_app
+from backend.batch.record_store import SqliteGradeStore
+from backend.batch.store import BATCH_STATUS_SUCCEEDED, GradeRecord
 
 
 def _record(record_id: str, batch_id: str, question_no: int, score: float,

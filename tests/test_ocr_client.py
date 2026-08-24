@@ -1,6 +1,6 @@
 """services/ocr.py OCR HTTP 客户端单元测试。
 
-mock services.ocr._post，覆盖客户端 4 个公开函数：recognize_texts 正常返回/
+mock backend.ocr.client._post，覆盖客户端 4 个公开函数：recognize_texts 正常返回/
 空列表短路/fail-fast 异常传播，segment_image 区域透传，crop_region 把 tuple
 bbox 转 list 序列化进 payload，regions_with_shared_enhance 正常返回与 regions
 为 null 时返回 None 的降级语义。全程不发起真实 HTTP，可离线独立运行。
@@ -9,8 +9,8 @@ from unittest.mock import patch
 
 import pytest
 
-import services.ocr as ocr_module
-from services.ocr import (
+import backend.ocr.client as ocr_module
+from backend.ocr.client import (
     crop_region,
     recognize_texts,
     regions_with_shared_enhance,

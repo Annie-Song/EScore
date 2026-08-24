@@ -1,17 +1,17 @@
 """用户认证 Flask 路由单元测试。
 
-用 monkeypatch 把 app.auth_routes.default_user_store 替换为指向 tmp_path
+用 monkeypatch 把 backend.auth.routes.default_user_store 替换为指向 tmp_path
 临时库的工厂，隔离真实 output/users.db，离线独立运行。mock 目标取调用方
-命名空间：app/auth_routes.py 顶层 `from services.user_store import
+命名空间：app/auth_routes.py 顶层 `from backend.auth.store import
 default_user_store` 绑定在模块级，故替换 auth_routes.default_user_store。
 """
 from __future__ import annotations
 
 import pytest
 
-import app.auth_routes as auth_routes
-from app import create_app
-from services.user_store import UserStore
+import backend.auth.routes as auth_routes
+from backend.app import create_app
+from backend.auth.store import UserStore
 
 _SESSION_KEYS = ("user_id", "display_name", "role", "plan")
 

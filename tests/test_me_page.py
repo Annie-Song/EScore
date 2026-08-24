@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 
-from app import create_app
+from backend.app import create_app
 
 # 四个卡片区关键文案
 _CARD_KEYWORDS = ("会员状态", "我的资料", "我的批改记录", "我的卷库")

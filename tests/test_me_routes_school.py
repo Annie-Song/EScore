@@ -4,7 +4,7 @@
 test_client 打接口，不按公开函数名导入）：游客 401、合法 code 更新
 school_id 200、非法 code 404、缺 code 400。
 
-mock 目标取调用方命名空间：app.me_routes.default_user_store /
+mock 目标取调用方命名空间：backend.auth.me_routes.default_user_store /
 default_school_store 均为模块级绑定，替换 me_routes 上的同名引用；
 登录态经 session 写入 user_id（login_required/current_user_id 均读会话）。
 """
@@ -15,10 +15,10 @@ from typing import Any
 
 import pytest
 
-import app.me_routes as me_routes
-from app import create_app
-from services.school_store import SchoolStore
-from services.user_store import UserStore
+import backend.auth.me_routes as me_routes
+from backend.app import create_app
+from backend.school.store import SchoolStore
+from backend.auth.store import UserStore
 
 USER_ID = "u-me-1"
 

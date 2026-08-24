@@ -1,10 +1,10 @@
-"""统计聚合 services.stats 单元测试。
+"""统计聚合 backend.stats.stats 单元测试。
 
 全部用例通过假 store 返回固定 GradeRecord 列表驱动 analyze_batch，
 不触数据库，可离线独立运行。
 """
-from services.stats import analyze_batch
-from services.store import GradeRecord
+from backend.stats.stats import analyze_batch
+from backend.batch.store import GradeRecord
 
 
 def _record(record_id: str, batch_id: str, question_no: int, score: float,

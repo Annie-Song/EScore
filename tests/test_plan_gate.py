@@ -2,18 +2,18 @@
 
 覆盖 /batch_grade 的 pro 档 402 门控、pro 会话 202 归属 user_id，
 以及 /compare_texts 按档位向 grade_answer 传递 allow_online。
-mock 目标取调用方命名空间：batch_routes 顶层 `from utils.files import
-save_upload` 绑定为 app.batch_routes.save_upload；routes 顶层
-`from services.scoring import grade_answer` 绑定为 app.routes.grade_answer。
+mock 目标取调用方命名空间：batch_routes 顶层 `from backend.core.files import
+save_upload` 绑定为 backend.batch.routes.save_upload；routes 顶层
+`from backend.scoring.engine import grade_answer` 绑定为 backend.grading.routes.grade_answer。
 """
 import io
 
 import pytest
 from unittest.mock import patch
 
-from app import create_app
+from backend.app import create_app
 
-import services.task_store as task_store
+import backend.batch.task_store as task_store
 
 
 class _SyncThread:
@@ -60,7 +60,7 @@ def pro_client(client, monkeypatch):
     """带 pro 档会话的客户端：current_user 返回 pro 档。"""
     _session_user(client, "pro")
     monkeypatch.setattr(
-        "services.auth.current_user",
+        "backend.auth.session.current_user",
         lambda: {"id": "demo", "plan": "pro", "display_name": "演示"},
     )
     return client
@@ -71,7 +71,7 @@ def free_client(client, monkeypatch):
     """带 free 档会话的客户端：current_user 返回 free 档。"""
     _session_user(client, "free")
     monkeypatch.setattr(
-        "services.auth.current_user",
+        "backend.auth.session.current_user",
         lambda: {"id": "demo", "plan": "free", "display_name": "演示"},
     )
     return client
@@ -108,10 +108,10 @@ def _full_result(score: float = 88.5) -> dict:
 
 def test_batch_grade_guest_valid_post_returns_402_plan_required(client):
     """游客合法提交 → 402 + code=PLAN_REQUIRED，任务不创建，run_batch_job 不被调用。"""
-    with patch("app.batch_routes.save_upload",
+    with patch("backend.batch.routes.save_upload",
                side_effect=["/tmp/ref.jpg", "/tmp/w1.png", "/tmp/w2.png"]), \
          patch("threading.Thread", _SyncThread), \
-         patch("services.batch.run_batch_job") as mock_run:
+         patch("backend.batch.pipeline.run_batch_job") as mock_run:
         resp = client.post("/batch_grade", data=_multipart(),
                            content_type="multipart/form-data")
     assert resp.status_code == 402
@@ -124,10 +124,10 @@ def test_batch_grade_guest_valid_post_returns_402_plan_required(client):
 
 def test_batch_grade_pro_session_returns_202_with_user_id(pro_client):
     """pro 会话合法提交 → 202，run_batch_job 收到 kwargs user_id='demo'。"""
-    with patch("app.batch_routes.save_upload",
+    with patch("backend.batch.routes.save_upload",
                side_effect=["/tmp/ref.jpg", "/tmp/w1.png", "/tmp/w2.png"]), \
          patch("threading.Thread", _SyncThread), \
-         patch("services.batch.run_batch_job") as mock_run:
+         patch("backend.batch.pipeline.run_batch_job") as mock_run:
         resp = pro_client.post("/batch_grade", data=_multipart(),
                                content_type="multipart/form-data")
     assert resp.status_code == 202
@@ -140,10 +140,10 @@ def test_batch_grade_pro_session_returns_202_with_user_id(pro_client):
 
 def test_batch_grade_free_session_returns_402(free_client):
     """free 档会话合法提交 → 402，run_batch_job 不被调用。"""
-    with patch("app.batch_routes.save_upload",
+    with patch("backend.batch.routes.save_upload",
                side_effect=["/tmp/ref.jpg", "/tmp/w1.png", "/tmp/w2.png"]), \
          patch("threading.Thread", _SyncThread), \
-         patch("services.batch.run_batch_job") as mock_run:
+         patch("backend.batch.pipeline.run_batch_job") as mock_run:
         resp = free_client.post("/batch_grade", data=_multipart(),
                                 content_type="multipart/form-data")
     assert resp.status_code == 402
@@ -156,7 +156,7 @@ def test_batch_grade_free_session_returns_402(free_client):
 
 def test_compare_texts_guest_passes_allow_online_false(client):
     """游客 → grade_answer 收到 allow_online=False。"""
-    with patch("app.routes.grade_answer",
+    with patch("backend.grading.routes.grade_answer",
                return_value=_full_result()) as mock_grade:
         resp = client.post("/compare_texts", json=_compare_payload())
     assert resp.status_code == 200
@@ -166,7 +166,7 @@ def test_compare_texts_guest_passes_allow_online_false(client):
 
 def test_compare_texts_free_session_passes_allow_online_false(free_client):
     """free 档会话 → grade_answer 收到 allow_online=False。"""
-    with patch("app.routes.grade_answer",
+    with patch("backend.grading.routes.grade_answer",
                return_value=_full_result()) as mock_grade:
         resp = free_client.post("/compare_texts", json=_compare_payload())
     assert resp.status_code == 200
@@ -176,7 +176,7 @@ def test_compare_texts_free_session_passes_allow_online_false(free_client):
 
 def test_compare_texts_pro_session_passes_allow_online_true(pro_client):
     """pro 档会话 → grade_answer 收到 allow_online=True。"""
-    with patch("app.routes.grade_answer",
+    with patch("backend.grading.routes.grade_answer",
                return_value=_full_result()) as mock_grade:
         resp = pro_client.post("/compare_texts", json=_compare_payload())
     assert resp.status_code == 200
@@ -186,7 +186,7 @@ def test_compare_texts_pro_session_passes_allow_online_true(pro_client):
 
 def test_compare_texts_free_force_online_returns_200_allow_online_false(free_client):
     """free 档显式 forceOnline=true → 200（优雅降级非 402），allow_online=False。"""
-    with patch("app.routes.grade_answer",
+    with patch("backend.grading.routes.grade_answer",
                return_value=_full_result()) as mock_grade:
         resp = free_client.post(
             "/compare_texts", json=_compare_payload(forceOnline=True)

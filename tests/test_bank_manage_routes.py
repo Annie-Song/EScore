@@ -3,7 +3,7 @@
 用真实 QuestionBankStore/SchoolQuestionStore + tmp_path 临时库走全栈，
 monkeypatch 使路由实例化的 QuestionBankStore()/SchoolQuestionStore() 指向
 临时库；登录态经 session 写入 user_id（login_required 读会话），当前用户经
-services.auth.current_user 模块级函数名 patch（auth.py docstring 约定）。
+backend.auth.session.current_user 模块级函数名 patch（auth.py docstring 约定）。
 完全离线运行，不触碰真实 output/question_bank.db、不访问外网。
 """
 from __future__ import annotations
@@ -12,11 +12,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from app import create_app
-from services.question_bank import BankQuestion
-from services.question_bank_store import QuestionBankStore
-from services.school_question_store import SchoolQuestionStore
-from utils import config
+from backend.app import create_app
+from backend.bank.model import BankQuestion
+from backend.bank.store import QuestionBankStore
+from backend.bank.school_store import SchoolQuestionStore
+from backend.core import config
 
 _GRADE = config.QUESTION_BANK_GRADE
 
@@ -61,9 +61,9 @@ def _patch_user(
     monkeypatch: pytest.MonkeyPatch, user_id: str, school_id: str | None,
     role: str,
 ) -> None:
-    """patch services.auth.current_user 返回指定用户 dict。"""
+    """patch backend.auth.session.current_user 返回指定用户 dict。"""
     monkeypatch.setattr(
-        "services.auth.current_user",
+        "backend.auth.session.current_user",
         lambda: {"id": user_id, "school_id": school_id, "role": role},
     )
 

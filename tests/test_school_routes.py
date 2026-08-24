@@ -17,15 +17,15 @@ from typing import Any
 
 import pytest
 
-import app.school_routes as school_routes
-import services.school_store as school_store_mod
-from app import create_app
-from services import auth
-from services.school_store import SchoolStore
-from services.sqlite_store import SqliteGradeStore
-from services.store import BATCH_STATUS_SUCCEEDED, GradeRecord
-from services.user_activity_store import UserActivityStore
-from services.user_store import UserStore
+import backend.school.routes as school_routes
+import backend.school.store as school_store_mod
+from backend.app import create_app
+from backend.auth import session as auth
+from backend.school.store import SchoolStore
+from backend.batch.record_store import SqliteGradeStore
+from backend.batch.store import BATCH_STATUS_SUCCEEDED, GradeRecord
+from backend.batch.user_activity_store import UserActivityStore
+from backend.auth.store import UserStore
 
 
 def _record(

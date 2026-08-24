@@ -10,9 +10,9 @@ import pytest
 from fastapi.testclient import TestClient
 from huggingface_hub.errors import LocalEntryNotFoundError
 
-import services.embedding_server as server_module
-from services.embedding_server import app
-from utils import config
+import servers.embedding.server as server_module
+from servers.embedding.server import app
+from backend.core import config
 
 
 @pytest.fixture(autouse=True)

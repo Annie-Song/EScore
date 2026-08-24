@@ -9,10 +9,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from services.question_bank import BankQuestion
-from services.question_bank_store import QuestionBankStore
-from services.school_question_store import SchoolQuestionStore
-from utils import config
+from backend.bank.model import BankQuestion
+from backend.bank.store import QuestionBankStore
+from backend.bank.school_store import SchoolQuestionStore
+from backend.core import config
 
 _GRADE = config.QUESTION_BANK_GRADE
 

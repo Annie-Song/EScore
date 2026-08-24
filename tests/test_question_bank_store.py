@@ -11,9 +11,9 @@ from dataclasses import astuple, fields
 
 import pytest
 
-from services.question_bank import BankQuestion
-from services.question_bank_store import QuestionBankStore
-from utils import config
+from backend.bank.model import BankQuestion
+from backend.bank.store import QuestionBankStore
+from backend.core import config
 
 _GRADE = config.QUESTION_BANK_GRADE
 

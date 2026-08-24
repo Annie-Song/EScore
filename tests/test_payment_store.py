@@ -10,7 +10,7 @@ import sqlite3
 
 import pytest
 
-from services.payment_store import PaymentStore
+from backend.pay.store import PaymentStore
 
 
 @pytest.fixture

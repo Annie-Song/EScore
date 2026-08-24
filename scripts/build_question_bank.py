@@ -15,9 +15,9 @@ from pathlib import Path
 # 支持 `python scripts/xxx.py` 直接运行：把项目根加入 sys.path，使 services/utils 可导入
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from services import question_bank
-from services.question_bank_store import QuestionBankStore
-from utils import config
+from backend.bank import model as question_bank
+from backend.bank.store import QuestionBankStore
+from backend.core import config
 
 
 def main(argv: list[str] | None = None) -> int:

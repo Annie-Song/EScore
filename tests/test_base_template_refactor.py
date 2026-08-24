@@ -17,11 +17,11 @@ from typing import Any
 
 import pytest
 
-from app import create_app
+from backend.app import create_app
 
 _BASE_DIR = Path(__file__).resolve().parent.parent
-_TEMPLATE_DIR = _BASE_DIR / "templates"
-_STATIC_DIR = _BASE_DIR / "static"
+_TEMPLATE_DIR = _BASE_DIR / "frontend" / "templates"
+_STATIC_DIR = _BASE_DIR / "frontend" / "static"
 
 # 页面路径 → (标题精确片段，页面内 h1 标题)
 _PAGES: dict[str, tuple[str, str]] = {

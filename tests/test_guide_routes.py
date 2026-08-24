@@ -9,7 +9,7 @@ import inspect
 
 import pytest
 
-from app import create_app
+from backend.app import create_app
 
 
 @pytest.fixture
@@ -79,11 +79,11 @@ def test_batch_contains_guide_link(client):
 
 def test_routes_public_functions_still_within_limit():
     """app/routes.py 公开函数不超过 5 个（模块约束门禁）。"""
-    import app.routes as routes_mod
+    import backend.grading.routes as routes_mod
 
     public_funcs = [
         name
         for name, func in inspect.getmembers(routes_mod, inspect.isfunction)
-        if func.__module__ == "app.routes" and not name.startswith("_")
+        if func.__module__ == "backend.grading.routes" and not name.startswith("_")
     ]
     assert len(public_funcs) <= 5

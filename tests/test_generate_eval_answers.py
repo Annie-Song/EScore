@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 import generate_eval_answers  # noqa: E402
 
-from services.eval_set import Question  # noqa: E402
+from backend.scoring.eval_set import Question  # noqa: E402
 
 
 class _FakeMessage:

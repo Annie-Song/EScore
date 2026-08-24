@@ -3,8 +3,8 @@
 用 monkeypatch 把 scripts.seed_demo_user.default_user_store 与
 default_school_store 替换为指向 tmp_path 临时库的工厂，隔离真实
 output/users.db，离线独立运行。mock 目标取调用方命名空间：
-scripts/seed_demo_user.py 顶层 `from services.user_store import
-default_user_store` 与 `from services.school_store import
+scripts/seed_demo_user.py 顶层 `from backend.auth.store import
+default_user_store` 与 `from backend.school.store import
 default_school_store` 均绑定在模块级，故替换 seed_demo_user 上同名引用。
 task/24 增强：补 default_school_store 的 patch，杜绝在真实 output/users.db
 落 DEMO 学校的副作用；新增学校种子幂等与账号 school_id 指向用例。
@@ -17,8 +17,8 @@ import pytest
 from werkzeug.security import check_password_hash
 
 import scripts.seed_demo_user as seed_demo_user
-from services.school_store import SchoolStore
-from services.user_store import UserStore
+from backend.school.store import SchoolStore
+from backend.auth.store import UserStore
 
 # 演示账号期望值：(role, plan, display_name, 明文密码)
 _EXPECTED_USERS = {

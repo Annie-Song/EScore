@@ -11,7 +11,7 @@ from typing import Any
 
 import pytest
 
-from app import create_app
+from backend.app import create_app
 
 _CREATE_CARD = 'id="createSchoolBtn"'
 

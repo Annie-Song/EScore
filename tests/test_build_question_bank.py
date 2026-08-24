@@ -15,8 +15,8 @@ from typing import Generator
 import pytest
 
 from scripts.build_question_bank import main as build_main
-from services.question_bank_store import QuestionBankStore
-from utils import config
+from backend.bank.store import QuestionBankStore
+from backend.core import config
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 

@@ -1,14 +1,14 @@
 """services/region_ocr.py 整图增强去重识别单元测试。
 
-通过 mock services.region_ocr 命名空间内的 enhance/ocr_instance/recognize_lines_of/
+通过 mock servers.ocr.region 命名空间内的 enhance/ocr_instance/recognize_lines_of/
 crop_region/enhance_retry/_image_size，覆盖增强不可用、整图高置信零成本路径、
 低置信整图共享增强、区域级低置信兜底、增强/裁剪失败降级、bbox 缩放与空区域等分支。
 全程不加载真实 PaddleOCR/ESRGAN，可离线独立运行。
 """
 from unittest.mock import patch
 
-import services.region_ocr as region_ocr
-from services.region_ocr import regions_with_shared_enhance
+import servers.ocr.region as region_ocr
+from servers.ocr.region import regions_with_shared_enhance
 
 # 两区域样例：与 batch._regions_of 里 segment_image 的输出结构一致
 _REGIONS = [

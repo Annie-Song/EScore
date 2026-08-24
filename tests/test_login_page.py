@@ -12,7 +12,7 @@ from typing import Any
 
 import pytest
 
-from app import create_app
+from backend.app import create_app
 
 # 五个导航链接：href → 链接文本（base.html 继承渲染）
 _NAV_LINKS: dict[str, str] = {

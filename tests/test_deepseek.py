@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from services import deepseek
+from backend.scoring import deepseek
 
 
 class _FakeMessage:

@@ -4,9 +4,9 @@ import io
 import pytest
 from unittest.mock import patch
 
-from app import create_app
+from backend.app import create_app
 
-import services.task_store as task_store
+import backend.batch.task_store as task_store
 
 
 class _SyncThread:
@@ -46,7 +46,7 @@ def pro_client(client, monkeypatch):
         sess["role"] = "teacher"
         sess["plan"] = "pro"
     monkeypatch.setattr(
-        "services.auth.current_user",
+        "backend.auth.session.current_user",
         lambda: {"id": "demo", "plan": "pro", "display_name": "演示"},
     )
     return client
@@ -107,10 +107,10 @@ def test_batch_grade_success_returns_202_and_creates_task(pro_client):
             (io.BytesIO(b"w2"), "work2.png"),
         ],
     }
-    with patch("app.batch_routes.save_upload",
+    with patch("backend.batch.routes.save_upload",
                side_effect=["/tmp/ref.jpg", "/tmp/w1.png", "/tmp/w2.png"]), \
          patch("threading.Thread", _SyncThread), \
-         patch("services.batch.run_batch_job") as mock_run:
+         patch("backend.batch.pipeline.run_batch_job") as mock_run:
         resp = pro_client.post("/batch_grade", data=data, content_type="multipart/form-data")
 
     assert resp.status_code == 202

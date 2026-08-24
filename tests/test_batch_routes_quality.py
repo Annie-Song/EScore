@@ -4,7 +4,7 @@ import io
 import pytest
 from unittest.mock import patch
 
-from app import create_app
+from backend.app import create_app
 
 
 class _SyncThread:
@@ -37,7 +37,7 @@ def pro_client(client, monkeypatch):
         sess["role"] = "teacher"
         sess["plan"] = "pro"
     monkeypatch.setattr(
-        "services.auth.current_user",
+        "backend.auth.session.current_user",
         lambda: {"id": "demo", "plan": "pro", "display_name": "演示"},
     )
     return client
@@ -58,10 +58,10 @@ def _multipart(**form_fields):
 
 def _run_post(client, **form_fields):
     """发起 /batch_grade 请求，patch 外部依赖后返回 (resp, mock_run)。"""
-    with patch("app.batch_routes.save_upload",
+    with patch("backend.batch.routes.save_upload",
                side_effect=["/tmp/ref.jpg", "/tmp/w1.png", "/tmp/w2.png"]), \
          patch("threading.Thread", _SyncThread), \
-         patch("services.batch.run_batch_job") as mock_run:
+         patch("backend.batch.pipeline.run_batch_job") as mock_run:
         resp = client.post(
             "/batch_grade", data=_multipart(**form_fields),
             content_type="multipart/form-data",

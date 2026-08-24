@@ -14,10 +14,10 @@ from typing import Any
 
 import pytest
 
-import app.user_role_routes as user_role_routes
-from app import create_app
-from services import auth
-from services.user_store import UserStore
+import backend.auth.role_routes as user_role_routes
+from backend.app import create_app
+from backend.auth import session as auth
+from backend.auth.store import UserStore
 
 
 @pytest.fixture

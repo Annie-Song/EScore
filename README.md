@@ -90,10 +90,10 @@ pip install -r requirements.txt
 
 ```
 # 终端 1：向量嵌入微服务（默认 127.0.0.1:8765）
-python -m services.embedding_server
+python -m servers.embedding.server
 
 # 终端 2：OCR 微服务（默认 127.0.0.1:8766）
-python -m services.ocr_server
+python -m servers.ocr.server
 
 # 终端 3：主应用
 python run.py
