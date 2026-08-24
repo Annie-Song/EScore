@@ -84,7 +84,7 @@ conda activate ggrade
 pip install -r requirements.txt
 ```
 
-关键版本说明：paddlepaddle 2.6.2 针对 numpy 1.x 编译，requirements.txt 已锁定 numpy==1.26.4，请勿升级到 numpy 2.x。复制 `.env.example` 为 `.env` 并填入 DeepSeek API Key；`.env` 可配置 `DEEPSEEK_API_KEY`、`FLASK_DEBUG`、`EMBEDDING_SERVICE_URL`、`OCR_SERVICE_URL`、`SECRET_KEY`（会话签名密钥，生产环境务必设置）、`OCR_CPU_THREADS`（OCR 推理线程数，默认 4）、`OCR_DEVICE`（OCR 推理设备，默认 cpu，设 gpu 启用 GPU）。启动前可选运行 `python scripts/seed_demo_user.py` 播种演示账号（demo/demo1234、admin/admin123）。
+关键版本说明：paddlepaddle 2.6.2 针对 numpy 1.x 编译，requirements.txt 已锁定 numpy==1.26.4，请勿升级到 numpy 2.x。复制 `.env.example` 为 `.env` 并填入 DeepSeek API Key；`.env` 可配置 `DEEPSEEK_API_KEY`、`FLASK_DEBUG`、`EMBEDDING_SERVICE_URL`、`OCR_SERVICE_URL`、`SECRET_KEY`（会话签名密钥，生产环境务必设置）、`OCR_CPU_THREADS`（OCR 推理线程数，默认 4）、`OCR_DEVICE`（OCR 推理设备，默认 cpu，设 gpu 启用 GPU）、`OCR_CACHE_MAX`（OCR 文本缓存上限，默认 256，满则整体清空）、`GRADE_CACHE_MAX`（单图评分结果缓存上限，默认 256）。启动前可选运行 `python scripts/seed_demo_user.py` 播种演示账号（demo/demo1234、admin/admin123）。
 
 启动三个进程（同一 conda 环境，或双击 `run.bat`）：
 
