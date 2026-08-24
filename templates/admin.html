@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+
+{% block title %}学校管理 - 智能作业批改系统{% endblock %}
+
+{% block styles %}
+<style>
+  /* 学校管理页专属样式：统计表格、创建表单、展开详情 */
+  .stats-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+  }
+
+  .stats-table th,
+  .stats-table td {
+    border: 1px solid var(--border-color);
+    padding: 8px 10px;
+    text-align: left;
+    font-size: 14px;
+  }
+
+  .stats-table th {
+    background: var(--light-bg);
+    color: var(--dark-text);
+    font-weight: 600;
+  }
+
+  .school-row {
+    cursor: pointer;
+  }
+
+  .school-row:hover td {
+    background: rgba(0, 122, 255, 0.05);
+  }
+
+  .create-form {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    margin-top: 10px;
+  }
+
+  .create-form .form-column {
+    flex: 1;
+  }
+
+  .create-form button {
+    width: auto;
+  }
+
+  .detail-box {
+    display: none;
+  }
+
+  .detail-section {
+    font-size: 15px;
+    color: var(--dark-text);
+    margin: 14px 0 4px;
+  }
+
+  .empty {
+    text-align: center;
+    color: var(--light-text);
+    padding: 20px 10px;
+    font-size: 14px;
+  }
+
+  @media (max-width: 768px) {
+    .create-form {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .create-form button {
+      width: 100%;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+  <div class="container">
+    <div class="page-header">
+      <h1>学校管理</h1>
+      <p>学校维度数据隔离与管理</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span>1</span>学校列表</div>
+      <table class="stats-table" id="schoolTable">
+        <thead>
+          <tr>
+            <th>名称</th>
+            <th>代码</th>
+            <th>成员数</th>
+            <th>批次数</th>
+            <th>记录数</th>
+            <th>平均分</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span>2</span>新建学校</div>
+      <div class="create-form">
+        <div class="form-column">
+          <label for="schoolName">学校名称</label>
+          <input type="text" id="schoolName" placeholder="如：示例中学" />
+        </div>
+        <div class="form-column">
+          <label for="schoolCode">学校代码</label>
+          <input type="text" id="schoolCode" placeholder="如：SCH001" />
+        </div>
+        <button type="button" id="createSchoolBtn">创建</button>
+      </div>
+    </div>
+
+    <div class="card detail-box" id="detailBox">
+      <div class="card-title"><span>3</span><span id="detailTitle">成员与批改统计</span></div>
+      <div id="detailContent"><div class="empty">加载中…</div></div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  async function loadSchools() {
+    try {
+      const response = await fetch("/api/admin/schools");
+      if (response.status === 403) {
+        showNotification("需要管理员权限", "warning");
+        return;
+      }
+      if (!response.ok) {
+        showNotification("加载学校列表失败，请重试", "error");
+        return;
+      }
+      const schools = await response.json();
+      const tbody = document.querySelector("#schoolTable tbody");
+      if (!schools.length) {
+        tbody.innerHTML = `<tr><td colspan="6" class="empty">暂无学校</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = schools
+        .map(
+          (school) => `
+          <tr class="school-row" data-id="${escapeHtml(school.id)}">
+            <td>${escapeHtml(school.name)}</td>
+            <td>${escapeHtml(school.code)}</td>
+            <td>${school.member_count}</td>
+            <td>${school.batch_count}</td>
+            <td>${school.record_count}</td>
+            <td>${school.avg_score}</td>
+          </tr>`
+        )
+        .join("");
+    } catch (error) {
+      showNotification("加载学校列表失败，请重试", "error");
+    }
+  }
+
+  async function loadMembers(schoolId) {
+    try {
+      const response = await fetch(
+        `/api/admin/schools/${encodeURIComponent(schoolId)}/members`
+      );
+      if (!response.ok) {
+        return [];
+      }
+      return await response.json();
+    } catch (error) {
+      return [];
+    }
+  }
+
+  async function loadBatches(schoolId) {
+    try {
+      const response = await fetch(
+        `/api/admin/batches?school_id=${encodeURIComponent(schoolId)}`
+      );
+      if (!response.ok) {
+        return [];
+      }
+      return await response.json();
+    } catch (error) {
+      return [];
+    }
+  }
+
+  async function showDetail(schoolId, schoolName) {
+    const box = document.getElementById("detailBox");
+    const content = document.getElementById("detailContent");
+    box.style.display = "block";
+    document.getElementById("detailTitle").textContent =
+      `${schoolName} - 成员与批改统计`;
+    content.innerHTML = `<div class="empty">加载中…</div>`;
+    const [members, batches] = await Promise.all([
+      loadMembers(schoolId),
+      loadBatches(schoolId),
+    ]);
+    const memberRows = members.length
+      ? members
+          .map(
+            (m) =>
+              `<tr><td>${escapeHtml(m.display_name || m.username || "")}</td>` +
+              `<td>${escapeHtml(m.username || "")}</td>` +
+              `<td>${escapeHtml(m.role || "")}</td>` +
+              `<td>${escapeHtml(m.plan || "")}</td></tr>`
+          )
+          .join("")
+      : `<tr><td colspan="4" class="empty">暂无成员</td></tr>`;
+    const batchRows = batches.length
+      ? batches
+          .map(
+            (b) =>
+              `<tr><td>${escapeHtml(b.batch_id)}</td>` +
+              `<td>${escapeHtml(b.status)}</td>` +
+              `<td>${escapeHtml(b.teacher_name)}</td>` +
+              `<td>${b.record_count}</td>` +
+              `<td>${b.avg_score}</td>` +
+              `<td>${escapeHtml(b.created_at || "")}</td></tr>`
+          )
+          .join("")
+      : `<tr><td colspan="6" class="empty">暂无批次</td></tr>`;
+    content.innerHTML =
+      `<h3 class="detail-section">成员（${members.length}）</h3>` +
+      `<table class="stats-table"><thead><tr><th>昵称</th><th>用户名</th><th>角色</th><th>套餐</th></tr></thead><tbody>${memberRows}</tbody></table>` +
+      `<h3 class="detail-section">批改批次（${batches.length}）</h3>` +
+      `<table class="stats-table"><thead><tr><th>批次 ID</th><th>状态</th><th>教师</th><th>记录数</th><th>平均分</th><th>创建时间</th></tr></thead><tbody>${batchRows}</tbody></table>`;
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    loadSchools();
+
+    document.getElementById("createSchoolBtn").addEventListener("click", async () => {
+      const name = document.getElementById("schoolName").value.trim();
+      const code = document.getElementById("schoolCode").value.trim();
+      if (!name || !code) {
+        showNotification("请填写学校名称与代码", "warning");
+        return;
+      }
+      try {
+        const response = await fetch("/api/admin/schools", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, code }),
+        });
+        if (response.status === 409) {
+          showNotification("学校代码已存在", "warning");
+          return;
+        }
+        if (!response.ok) {
+          showNotification("创建学校失败，请重试", "error");
+          return;
+        }
+        showNotification("学校创建成功", "success");
+        document.getElementById("schoolName").value = "";
+        document.getElementById("schoolCode").value = "";
+        loadSchools();
+      } catch (error) {
+        showNotification("创建学校失败，请重试", "error");
+      }
+    });
+
+    document.querySelector("#schoolTable tbody").addEventListener("click", (e) => {
+      const row = e.target.closest(".school-row");
+      if (!row) {
+        return;
+      }
+      showDetail(row.dataset.id, row.querySelector("td").textContent);
+    });
+  });
+</script>
+{% endblock %}

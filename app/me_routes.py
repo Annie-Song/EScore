@@ -8,8 +8,10 @@ from __future__ import annotations
 from flask import Blueprint, jsonify, render_template, request
 
 from services import auth
+from services.school_store import default_school_store
 from services.store import default_store
 from services.user_activity_store import default_user_activity_store
+from services.user_store import default_user_store
 
 bp = Blueprint('me', __name__)
 
@@ -158,3 +160,23 @@ def favorites_remove(qid: str):
         return guard
     default_user_activity_store().remove_favorite(auth.current_user_id(), qid)
     return jsonify({"ok": True}), 200
+
+
+@bp.route('/api/me/school', methods=['POST'])
+def _join_school():
+    """加入学校：school_code 合法则更新当前用户 school_id，无效返回 404。
+
+    函数名以下划线开头维持本模块公开函数数在 5 个限制内，路由名不受影响。
+    """
+    guard = auth.login_required()
+    if guard:
+        return guard
+    body = request.get_json(silent=True) or {}
+    school_code = (body.get('school_code') or '').strip()
+    if not school_code:
+        return jsonify({"message": "缺少学校代码"}), 400
+    school = default_school_store().get_school_by_code(school_code)
+    if school is None:
+        return jsonify({"message": "学校代码无效"}), 404
+    default_user_store().update_school_id(auth.current_user_id(), school["id"])
+    return jsonify({"ok": True, "school_id": school["id"]}), 200

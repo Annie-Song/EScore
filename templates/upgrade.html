@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}升级专业版 - 智能作业批改系统{% endblock %}
+
+{% block styles %}
+<style>
+  /* 升级页专属样式：双套餐卡对比 */
+  .upgrade-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  @media (max-width: 768px) {
+    .upgrade-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .plan-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 24px;
+    box-shadow: var(--box-shadow);
+  }
+
+  .plan-card.pro {
+    border: 2px solid var(--warning-soft-color);
+  }
+
+  .plan-card h2 {
+    font-size: 20px;
+    margin-bottom: 8px;
+    color: var(--dark-text);
+  }
+
+  .plan-price {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin: 12px 0;
+  }
+
+  .plan-price small {
+    font-size: 14px;
+    color: var(--light-text);
+    font-weight: 400;
+  }
+
+  .plan-features {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 18px;
+  }
+
+  .plan-features li {
+    padding: 6px 0;
+    font-size: 14px;
+    color: var(--dark-text);
+  }
+
+  .back-link {
+    display: inline-block;
+    margin-top: 20px;
+    font-size: 14px;
+    color: var(--primary-color);
+    text-decoration: none;
+  }
+
+  .back-link:hover {
+    text-decoration: underline;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+  <div class="container">
+    <div class="page-header">
+      <h1>升级专业版</h1>
+      <p>解锁全部高级批改功能</p>
+    </div>
+
+    <div class="upgrade-grid">
+      <div class="plan-card">
+        <h2>免费版</h2>
+        <div class="plan-price">¥0 <small>/ 永久</small></div>
+        <ul class="plan-features">
+          <li>基础批改功能</li>
+          <li>使用教程访问</li>
+          <li>个人卷库</li>
+        </ul>
+        <button type="button" class="btn-secondary" onclick="window.location.href='/me'">当前套餐</button>
+      </div>
+
+      <div class="plan-card pro">
+        <h2>专业版</h2>
+        <div class="plan-price" id="proPrice"></div>
+        <ul class="plan-features">
+          <li>批量批改（pro 专属）</li>
+          <li>在线 AI 精排评分</li>
+          <li>学校数据统计</li>
+          <li>优先支持</li>
+        </ul>
+        <button type="button" id="upgradeBtn">立即升级</button>
+        <div class="btn-hint" id="payHint"></div>
+      </div>
+    </div>
+
+    <a href="/me" class="back-link">← 返回个人主页</a>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const PRICING = {{ pricing | tojson }};
+  const priceCents = PRICING["pro"] || 0;
+  document.getElementById("proPrice").innerHTML =
+    `¥${(priceCents / 100).toFixed(0)} <small>/ 年</small>`;
+
+  document.getElementById("upgradeBtn").addEventListener("click", async () => {
+    const btn = document.getElementById("upgradeBtn");
+    const hint = document.getElementById("payHint");
+    btn.disabled = true;
+    hint.textContent = "正在创建订单…";
+    try {
+      const response = await fetch("/api/pay/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: "pro" }),
+      });
+      if (response.status === 401) {
+        showNotification("请先登录", "warning");
+        window.location.href = "/login";
+        return;
+      }
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        showNotification(data.message || "创建订单失败，请重试", "error");
+        btn.disabled = false;
+        hint.textContent = "";
+        return;
+      }
+      const data = await response.json();
+      if (data.pay_url) {
+        window.location.href = data.pay_url;
+      } else {
+        showNotification("支付链接无效，请重试", "error");
+        btn.disabled = false;
+        hint.textContent = "";
+      }
+    } catch (error) {
+      showNotification("创建订单失败，请重试", "error");
+      btn.disabled = false;
+      hint.textContent = "";
+    }
+  });
+</script>
+{% endblock %}

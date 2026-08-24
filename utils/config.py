@@ -105,3 +105,23 @@ QUESTION_BANK_DIFFICULTY_BASIC_MAX = 6      # 主观题分值分档：<此值为
 SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-prod")
 # 用户体系 SQLite（users/user_batches/user_favorites 三表）
 USER_DB_PATH = './output/users.db'
+
+# 专业版套餐定价（单位：分，99 元）；升级接口仅接受此表内的 plan 键
+PRICING = {"pro": 9900}
+
+# 支付宝沙箱网关配置：经 os.environ 读取（.env 注入），默认占位即走本地演示网关
+ALIPAY_APP_ID = os.environ.get("ALIPAY_APP_ID", "")
+ALIPAY_PRIVATE_KEY = os.environ.get("ALIPAY_PRIVATE_KEY", "")
+ALIPAY_PUBLIC_KEY = os.environ.get("ALIPAY_PUBLIC_KEY", "")
+ALIPAY_GATEWAY_URL = os.environ.get(
+    "ALIPAY_GATEWAY_URL",
+    "https://openapi-sandbox.dl.alipaydev.com/gateway.do",
+)
+
+# 支付同步/异步回调地址：默认本地地址，生产用环境变量覆盖为公网 HTTPS 地址
+PAY_RETURN_URL = os.environ.get(
+    "PAY_RETURN_URL", "http://127.0.0.1:5000/api/pay/return"
+)
+PAY_NOTIFY_URL = os.environ.get(
+    "PAY_NOTIFY_URL", "http://127.0.0.1:5000/api/pay/notify"
+)

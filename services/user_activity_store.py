@@ -75,6 +75,14 @@ class UserActivityStore:
             ).fetchall()
         return [dict(row) for row in rows]
 
+    def list_all_batches(self) -> list[dict]:
+        """列出全部用户-批次关联映射（跨校管理用），按创建时间倒序。"""
+        with self._session() as conn:
+            rows = conn.execute(
+                "SELECT * FROM user_batches ORDER BY created_at DESC"
+            ).fetchall()
+        return [dict(row) for row in rows]
+
     def add_favorite(
         self,
         user_id: str,
