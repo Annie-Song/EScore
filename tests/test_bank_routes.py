@@ -19,9 +19,10 @@ _GRADE = config.QUESTION_BANK_GRADE
 _LIST_FIELDS = {
     "qid", "subject", "qtype", "grade", "year", "region",
     "difficulty", "source_type", "source_file", "question", "score",
+    "school_id", "created_by",
 }
-# 详情页完整字段（含 answer/analysis/index）
-_FULL_FIELDS = _LIST_FIELDS | {"answer", "analysis", "index"}
+# 详情页完整字段（含 answer/analysis/index/created_at 等全部 17 列）
+_FULL_FIELDS = _LIST_FIELDS | {"answer", "analysis", "index", "created_at"}
 
 
 def _q(
@@ -38,6 +39,9 @@ def _q(
     score: int = 5,
     index: int = 0,
     region: str = "全国",
+    school_id: str | None = None,
+    created_by: str | None = None,
+    created_at: str | None = None,
 ) -> BankQuestion:
     """构造测试用 BankQuestion，未显式指定的字段用默认值。"""
     return BankQuestion(
@@ -45,6 +49,7 @@ def _q(
         region=region, difficulty=difficulty, source_type=source_type,
         source_file="source.json", question=question, answer=answer,
         analysis=analysis, score=score, index=index,
+        school_id=school_id, created_by=created_by, created_at=created_at,
     )
 
 
@@ -101,6 +106,33 @@ def empty_bank_client(monkeypatch, tmp_path):
     """空库客户端：临时库已建表但未插任何题，用于验证 503。"""
     db_path = str(tmp_path / "empty.db")
     QuestionBankStore(db_path)
+    _patch_db(monkeypatch, db_path)
+    app = create_app()
+    app.config["TESTING"] = True
+    with app.test_client() as c:
+        yield c
+
+
+@pytest.fixture()
+def school_bank_client(monkeypatch, tmp_path):
+    """带校题客户端：6 条全局种子题 + schA/schB 各 1 条校题。"""
+    db_path = str(tmp_path / "school_qb.db")
+    store = QuestionBankStore(db_path)
+    store.insert_many(_seed_rows())
+    store.insert_many([
+        _q(
+            "schA-1", "生物", "选择题", "进阶", "objective", "2023",
+            question="校题A题干 Mitochondria",
+            answer="A", analysis="校题A解析",
+            school_id="schA", created_by="u-teacherA", created_at="t",
+        ),
+        _q(
+            "schB-1", "数学（理）", "解答题", "基础", "subjective", "2024",
+            question="校题B题干",
+            answer="B", analysis="校题B解析",
+            school_id="schB", created_by="u-teacherB", created_at="t",
+        ),
+    ])
     _patch_db(monkeypatch, db_path)
     app = create_app()
     app.config["TESTING"] = True
@@ -242,3 +274,91 @@ def test_搜索全量默认(bank_client) -> None:
     assert body["total"] == 6
     assert body["limit"] == 50
     assert body["offset"] == 0
+
+
+def test_无auth仅全局可见(school_bank_client) -> None:
+    """未登录（current_user 返回 None）时 search/facets 只返回全局题，校题不可见。"""
+    body = school_bank_client.get(
+        "/api/bank/search", query_string={"limit": 50}
+    ).get_json()
+    assert body["total"] == 6
+    assert "schA-1" not in {i["qid"] for i in body["items"]}
+    assert "schB-1" not in {i["qid"] for i in body["items"]}
+    subjects = {i["value"] for i in school_bank_client.get(
+        "/api/bank/facets").get_json()["subjects"]}
+    assert subjects == {"语文", "数学（理）", "生物", "英语"}
+
+
+def test_search_本校可见全局加本校(school_bank_client, monkeypatch) -> None:
+    """patch current_user 返回 schA 用户后，search 返回全局+本校，排除他校题。"""
+    monkeypatch.setattr(
+        "services.auth.current_user",
+        lambda: {"id": "u-teacherA", "school_id": "schA",
+                 "role": "teacher", "plan": "free"},
+    )
+    body = school_bank_client.get(
+        "/api/bank/search", query_string={"limit": 50}
+    ).get_json()
+    qids = {i["qid"] for i in body["items"]}
+    assert "schA-1" in qids
+    assert "schB-1" not in qids
+    assert body["total"] == 7  # 6 全局 + 本校 1
+
+
+def test_search_他校不可见(school_bank_client, monkeypatch) -> None:
+    """patch current_user 返回 schB 用户后，search 排除 schA 校题。"""
+    monkeypatch.setattr(
+        "services.auth.current_user",
+        lambda: {"id": "u-teacherB", "school_id": "schB",
+                 "role": "teacher", "plan": "free"},
+    )
+    body = school_bank_client.get(
+        "/api/bank/search", query_string={"limit": 50}
+    ).get_json()
+    qids = {i["qid"] for i in body["items"]}
+    assert "schB-1" in qids
+    assert "schA-1" not in qids
+    assert body["total"] == 7
+
+
+def test_facets_本校包含本校计数(school_bank_client, monkeypatch) -> None:
+    """patch current_user 返回 schA 用户后，facets 科目计数含本校校题。"""
+    monkeypatch.setattr(
+        "services.auth.current_user",
+        lambda: {"id": "u-teacherA", "school_id": "schA",
+                 "role": "teacher", "plan": "free"},
+    )
+    subjects = {i["value"]: i["count"] for i in school_bank_client.get(
+        "/api/bank/facets").get_json()["subjects"]}
+    assert subjects["生物"] == 3  # 全局 2 + 本校 schA-1
+
+
+def test_详情_本校校题200_跨校404(school_bank_client, monkeypatch) -> None:
+    """本校校题详情 200；他校用户访问该题 404；全局题任意用户均 200。"""
+    monkeypatch.setattr(
+        "services.auth.current_user",
+        lambda: {"id": "u-teacherA", "school_id": "schA",
+                 "role": "teacher", "plan": "free"},
+    )
+    assert school_bank_client.get("/api/bank/questions/schA-1").status_code == 200
+    # 全局题（school_id NULL）对任意登录用户可见
+    assert school_bank_client.get("/api/bank/questions/chi-1").status_code == 200
+
+    # 他校用户访问 schA 校题 → 404
+    monkeypatch.setattr(
+        "services.auth.current_user",
+        lambda: {"id": "u-teacherB", "school_id": "schB",
+                 "role": "teacher", "plan": "free"},
+    )
+    resp = school_bank_client.get("/api/bank/questions/schA-1")
+    assert resp.status_code == 404
+    assert resp.get_json() == {"message": "题目不存在"}
+    # 本校用户访问自己的校题 → 200
+    assert school_bank_client.get("/api/bank/questions/schB-1").status_code == 200
+
+
+def test_详情_游客访问校题404(school_bank_client) -> None:
+    """游客（current_user 返回 None）访问校题详情应 404。"""
+    resp = school_bank_client.get("/api/bank/questions/schA-1")
+    assert resp.status_code == 404
+    assert resp.get_json() == {"message": "题目不存在"}

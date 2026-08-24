@@ -108,6 +108,34 @@ def test_bank模板_主题开关存在() -> None:
     assert '"theme"' in js
 
 
+def test_bank模板_校本题表单与徽标删除控件() -> None:
+    """模板含添加校本题表单、本校徽标样式与删除按钮样式类。"""
+    html = _read_template("bank.html")
+    for element_id in (
+        "addSubject", "addQtype", "addDifficulty", "addScore",
+        "addQuestion", "addAnswer", "addQuestionBtn",
+    ):
+        assert f'id="{element_id}"' in html, element_id
+    assert "add-panel" in html
+    assert "school-badge" in html
+    assert "delete-btn" in html
+
+
+def test_bank页_入校用户渲染添加表单() -> None:
+    """入校用户 GET /bank 渲染添加校本题表单，游客不渲染。"""
+    app = create_app()
+    app.config["TESTING"] = True
+    client = app.test_client()
+    html = client.get("/bank").get_data(as_text=True)
+    assert 'id="addQuestionBtn"' not in html  # 游客不显示添加表单
+
+    with client.session_transaction() as sess:
+        sess["user_id"] = "u-1"
+        sess["school_id"] = "schA"
+    html = client.get("/bank").get_data(as_text=True)
+    assert 'id="addQuestionBtn"' in html  # 已入校用户显示添加表单
+
+
 def test_index入口链接(client: Any) -> None:
     """首页含 href=/bank 分类题库入口（统一导航由 base.html 继承渲染）。"""
     html = client.get("/").get_data(as_text=True)
