@@ -83,6 +83,12 @@ OCR_SERVICE_URL = os.environ.get(
     f"http://{OCR_SERVICE_HOST}:{OCR_SERVICE_PORT}",
 )
 
+# PaddleOCR CPU 推理线程数：实测 2 线程在 16 核机器上最快（多线程在小模型上抖动）；可用环境变量覆盖
+OCR_CPU_THREADS = int(os.environ.get("OCR_CPU_THREADS", "2"))
+
+# OCR 推理设备：默认 cpu；预留 GPU（设为 gpu 需安装 paddlepaddle-gpu，PaddleOCR(device='gpu') 即启用）
+OCR_DEVICE = os.environ.get("OCR_DEVICE", "cpu")
+
 # 错因 AI 归类：默认关闭（基础用户规则分档），落入模糊带才调 DeepSeek 细分类
 ERROR_AI_MODE = False
 ERROR_AI_BAND_LOW = 30.0  # 模糊带下界：低于此分一律规则分档

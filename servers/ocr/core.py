@@ -30,7 +30,13 @@ def _load_paddleocr(lang: str) -> object:
     with _load_lock:
         if lang not in _ocr_instances:
             from paddleocr import PaddleOCR
-            _ocr_instances[lang] = PaddleOCR(show_log=False, use_angle_cls=True, lang=lang)
+            _ocr_instances[lang] = PaddleOCR(
+                show_log=False,
+                use_angle_cls=True,
+                lang=lang,
+                cpu_threads=config.OCR_CPU_THREADS,
+                device=config.OCR_DEVICE,
+            )
     return _ocr_instances[lang]
 
 
