@@ -130,6 +130,16 @@ class UserStore:
         if cursor.rowcount == 0:
             raise ValueError(f"用户不存在: {user_id}")
 
+    def update_role(self, user_id: str, role: str) -> None:
+        """更新用户角色；用户不存在抛 ValueError（fail-fast，不静默降级）。"""
+        with self._session() as conn:
+            cursor = conn.execute(
+                "UPDATE users SET role=?, updated_at=? WHERE id=?",
+                (role, self._now(), user_id),
+            )
+        if cursor.rowcount == 0:
+            raise ValueError(f"用户不存在: {user_id}")
+
     def list_users_by_school(self, school_id: str) -> list[dict]:
         """按学校 id 列出全部成员，按创建时间倒序。"""
         with self._session() as conn:

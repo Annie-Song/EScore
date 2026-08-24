@@ -81,7 +81,11 @@ def ctx(monkeypatch: pytest.MonkeyPatch, tmp_path) -> Any:
 
 
 def _as(
-    ctx: Any, role: str, user_id: str = "u-1", display_name: str = "测试"
+    ctx: Any,
+    role: str,
+    user_id: str = "u-1",
+    display_name: str = "测试",
+    school_id: str | None = None,
 ) -> None:
     """注入指定角色的当前用户到 auth.current_user。"""
     ctx.holder["user"] = {
@@ -89,7 +93,7 @@ def _as(
         "role": role,
         "display_name": display_name,
         "username": "user",
-        "school_id": None,
+        "school_id": school_id,
     }
 
 
@@ -272,3 +276,105 @@ def test_admin_batches_all_no_filter(ctx: Any) -> None:
     assert resp.status_code == 200
     items = resp.get_json()
     assert [item["batch_id"] for item in items] == ["batch-new", "batch-old"]
+
+
+# ---- F10 school_admin 权限场景 ----
+
+def test_admin_schools_list_school_admin_only_own(ctx: Any) -> None:
+    """school_admin 学校列表仅返回本校一条；同数据下 admin 返回全部。"""
+    s1 = ctx.schools.create_school("示例中学", "SCH001")
+    s2 = ctx.schools.create_school("第二中学", "SCH002")
+    _as(ctx, "school_admin", school_id=s1["id"])
+    resp = ctx.client.get("/api/admin/schools")
+    assert resp.status_code == 200
+    assert [item["id"] for item in resp.get_json()] == [s1["id"]]
+    _as(ctx, "admin")
+    resp_all = ctx.client.get("/api/admin/schools")
+    assert {item["id"] for item in resp_all.get_json()} == {s1["id"], s2["id"]}
+
+
+def test_admin_schools_list_school_admin_no_school_empty(ctx: Any) -> None:
+    """school_admin 无 school_id：学校列表返回空列表。"""
+    _as(ctx, "school_admin", school_id=None)
+    resp = ctx.client.get("/api/admin/schools")
+    assert resp.status_code == 200
+    assert resp.get_json() == []
+
+
+def test_admin_schools_list_school_admin_missing_school_empty(ctx: Any) -> None:
+    """school_admin 的 school_id 指向不存在学校：学校列表返回空列表。"""
+    ctx.schools.create_school("示例中学", "SCH001")
+    _as(ctx, "school_admin", school_id="no-such-school")
+    resp = ctx.client.get("/api/admin/schools")
+    assert resp.status_code == 200
+    assert resp.get_json() == []
+
+
+def test_admin_schools_create_school_admin_403(ctx: Any) -> None:
+    """school_admin POST 建校：403 需要管理员权限。"""
+    _as(ctx, "school_admin", school_id="s1")
+    resp = ctx.client.post("/api/admin/schools", json={
+        "name": "新中学", "code": "SCH999",
+    })
+    assert resp.status_code == 403
+    assert resp.get_json()["message"] == "需要管理员权限"
+
+
+def test_admin_schools_members_school_admin_own_200_other_403(ctx: Any) -> None:
+    """school_admin 看本校 members 200；看其他校 403 无权限。"""
+    s1 = ctx.schools.create_school("示例中学", "SCH001")
+    s2 = ctx.schools.create_school("第二中学", "SCH002")
+    ctx.users.create_user("alice", "hash", display_name="Alice",
+                          school_id=s1["id"])
+    _as(ctx, "school_admin", school_id=s1["id"])
+    resp_own = ctx.client.get(f"/api/admin/schools/{s1['id']}/members")
+    assert resp_own.status_code == 200
+    assert len(resp_own.get_json()) == 1
+    resp_other = ctx.client.get(f"/api/admin/schools/{s2['id']}/members")
+    assert resp_other.status_code == 403
+    assert resp_other.get_json()["message"] == "无权限查看其他学校成员"
+
+
+def test_admin_batches_school_admin_forced_own_school(ctx: Any) -> None:
+    """school_admin batches 强制本校：请求传其他 school_id 也按本人 school_id 过滤。"""
+    s1 = ctx.schools.create_school("示例中学", "SCH001")
+    s2 = ctx.schools.create_school("第二中学", "SCH002")
+    alice = ctx.users.create_user("alice", "hash", display_name="Alice",
+                                  school_id=s1["id"])
+    bob = ctx.users.create_user("bob", "hash", display_name="Bob",
+                                school_id=s2["id"])
+    ctx.activity.link_batch(alice["id"], "task-1", "batch-own")
+    ctx.activity.link_batch(bob["id"], "task-2", "batch-other")
+    ctx.grades.save_batch("batch-own", "参考答案", BATCH_STATUS_SUCCEEDED, 1,
+                          "2026-01-01T00:00:00")
+    ctx.grades.save_record(_record("r1", "batch-own", 1, 80.0))
+    ctx.grades.save_batch("batch-other", "参考答案2", BATCH_STATUS_SUCCEEDED, 1,
+                          "2026-01-01T00:00:01")
+    ctx.grades.save_record(_record("r2", "batch-other", 1, 60.0))
+    _as(ctx, "school_admin", school_id=s1["id"])
+    resp = ctx.client.get(f"/api/admin/batches?school_id={s2['id']}")
+    assert resp.status_code == 200
+    items = resp.get_json()
+    assert [item["batch_id"] for item in items] == ["batch-own"]
+
+
+def test_admin_schools_members_teacher_403(ctx: Any) -> None:
+    """teacher GET 成员接口：403 需要管理员权限。"""
+    _as(ctx, "teacher")
+    resp = ctx.client.get("/api/admin/schools/s1/members")
+    assert resp.status_code == 403
+    assert resp.get_json()["message"] == "需要管理员权限"
+
+
+def test_admin_schools_members_guest_403(ctx: Any) -> None:
+    """游客 GET 成员接口：403。"""
+    resp = ctx.client.get("/api/admin/schools/s1/members")
+    assert resp.status_code == 403
+
+
+def test_admin_batches_teacher_403(ctx: Any) -> None:
+    """teacher GET /api/admin/batches：403 需要管理员权限。"""
+    _as(ctx, "teacher")
+    resp = ctx.client.get("/api/admin/batches")
+    assert resp.status_code == 403
+    assert resp.get_json()["message"] == "需要管理员权限"
