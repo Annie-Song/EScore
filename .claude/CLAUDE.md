@@ -8,17 +8,21 @@
 
 | 目录 | 职责 |
 | --- | --- |
-| app/ | 路由与请求处理 |
-| services/ | 业务逻辑（评分、OCR、语义匹配） |
-| utils/ | 通用工具 |
-| tests/ | 测试 |
+| backend/ | Flask 主应用，按功能域拆包（routes+services+store 同置） |
+| servers/ | 独立微服务进程（embedding/、ocr/） |
+| frontend/ | 前端资源（templates/ + static/，目录级前后端分离） |
+| scripts/ | 运维/评测脚本 |
+| experiments/ | 遗留实验目录（enhance/、image/、others/、txt_compare/ 等） |
+| tests/ | 测试，按功能域分子目录 |
+
+backend/ 功能域：core（config/files）、auth（会话/用户/登录/me/角色）、bank（题库）、school（学校）、scoring（评分引擎/deepseek/embedding/评测）、ocr（OCR 客户端）、batch（批改管线/任务/存储）、stats（统计）、grading（单份批改/报告）、pay（支付网关）、infra（健康检查）。
 
 硬性规则：
 
 1. 一个文件不超过 5 个公开函数或方法。
 2. 一个文件不超过约 200 行，超出拆分为多个文件。
 3. 每个 Python 包目录含 __init__.py。
-4. 根目录只保留入口 run.py 与配置，业务代码一律位于 app/services/utils 分层目录。
+4. 根目录只保留入口 run.py 与配置，业务代码一律位于 backend/servers/frontend 分层目录。
 
 ## 代码风格
 
@@ -41,7 +45,7 @@
 
 ## 版本号
 
-采用语义化三段：主版本.次版本.修订。重大重构升主版本、新功能升次版本、bugfix 升修订。当前版本 2.15.0。
+采用语义化三段：主版本.次版本.修订。重大重构升主版本、新功能升次版本、bugfix 升修订。当前版本 2.16.0。
 
 ## Git 工作流
 
@@ -65,7 +69,7 @@
 
 1. 完成标准（DoD）：单测通过、集成联调通过、迭代反馈表已更新、已提交，四者同时成立才算完成；代码改动未同步 README/requirements 不算完成。
 2. 回滚保护：联调失败且短时间修不好时，回退到上一版本 commit，保持 main 可运行。
-3. 环境冒烟：每轮开始先在 ggrade 环境跑 python -c "from app import create_app" 确认环境就绪。
+3. 环境冒烟：每轮开始先在 ggrade 环境跑 python -c "from backend.app import create_app" 确认环境就绪。
 4. 性能基线：涉及性能的任务先记录优化前基线，再优化。
 5. 依赖同步：新增/移除依赖时同步 requirements.txt 并验证可安装。
 
