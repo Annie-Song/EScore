@@ -70,3 +70,11 @@ def test_bank_收藏按钮标记存在(client: Any) -> None:
     assert 'class="fav-btn"' in html
     assert "收藏" in html
     assert ".fav-btn.favorited" in html
+
+
+def test_me_page_role_label_contains_school_admin(client: Any) -> None:
+    """/me 页面 JS 的 roleLabel 含 school_admin: 学校管理员。"""
+    html = client.get("/me").get_data(as_text=True)
+    assert 'school_admin: "学校管理员"' in html
+    assert 'admin: "管理员"' in html
+    assert 'teacher: "教师"' in html

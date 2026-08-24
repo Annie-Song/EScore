@@ -15,7 +15,10 @@ from utils import config
 
 @dataclass
 class BankQuestion:
-    """题库单题：含来源、标签、题干/答案/解析与分值，供检索与评分复用。"""
+    """题库单题：含来源、标签、题干/答案/解析与分值，供检索与评分复用。
+
+    school_id 为 NULL 表示全局种子题，非空表示归属该校的校本题。
+    """
     qid: str
     subject: str
     qtype: str
@@ -30,6 +33,9 @@ class BankQuestion:
     analysis: str
     score: int
     index: int
+    school_id: str | None = None
+    created_by: str | None = None
+    created_at: str | None = None
 
 
 _BRACKET_RE = re.compile(r"[()（）]")

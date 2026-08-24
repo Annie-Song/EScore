@@ -284,7 +284,7 @@
       list.innerHTML = `<div class="empty">未登录</div>`;
       return;
     }
-    const roleLabel = { teacher: "教师", admin: "管理员" };
+    const roleLabel = { teacher: "教师", school_admin: "学校管理员", admin: "管理员" };
     const items = [
       ["用户名", user.username || "-"],
       ["昵称", user.display_name || "未设置"],
