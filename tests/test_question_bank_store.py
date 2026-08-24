@@ -5,7 +5,9 @@
 """
 from __future__ import annotations
 
+import re
 import sqlite3
+from dataclasses import astuple, fields
 
 import pytest
 
@@ -30,6 +32,9 @@ def _q(
     score: int = 5,
     index: int = 0,
     region: str = "全国",
+    school_id: str | None = None,
+    created_by: str | None = None,
+    created_at: str | None = None,
 ) -> BankQuestion:
     """构造测试用 BankQuestion，未显式指定的字段使用默认值。"""
     return BankQuestion(
@@ -47,6 +52,9 @@ def _q(
         analysis=analysis,
         score=score,
         index=index,
+        school_id=school_id,
+        created_by=created_by,
+        created_at=created_at,
     )
 
 
@@ -207,3 +215,163 @@ def test_wal模式生效(tmp_path) -> None:
     finally:
         conn.close()
     assert mode == "wal"
+
+
+def test_旧库迁移_补列建索引_幂等(tmp_path) -> None:
+    """14 列旧库初始化后补齐 school_id/created_by/created_at 三列并建 school 索引。
+
+    重复初始化不报错；迁移后库可按 17 列插入并正确按可见范围统计。
+    """
+    db_path = str(tmp_path / "migrate.db")
+    conn = sqlite3.connect(db_path)
+    conn.executescript(
+        """
+        CREATE TABLE question_bank (
+            qid TEXT PRIMARY KEY,
+            subject TEXT NOT NULL,
+            qtype TEXT NOT NULL,
+            grade TEXT NOT NULL,
+            year TEXT NOT NULL,
+            region TEXT NOT NULL,
+            difficulty TEXT NOT NULL,
+            source_type TEXT NOT NULL,
+            source_file TEXT NOT NULL,
+            question TEXT NOT NULL,
+            answer TEXT NOT NULL,
+            analysis TEXT NOT NULL,
+            score INTEGER NOT NULL,
+            "index" INTEGER NOT NULL
+        )
+        """
+    )
+    conn.close()
+
+    # 首次初始化触发迁移
+    QuestionBankStore(db_path)
+    # 重复初始化不报错
+    QuestionBankStore(db_path)
+
+    conn = sqlite3.connect(db_path)
+    try:
+        columns = {
+            row[1] for row in conn.execute("PRAGMA table_info(question_bank)")
+        }
+        assert {"school_id", "created_by", "created_at"} <= columns
+        index_names = {
+            row[1] for row in conn.execute("PRAGMA index_list(question_bank)")
+        }
+        assert "idx_qbank_school" in index_names
+    finally:
+        conn.close()
+
+    # 迁移后库支持插入租户维度数据并按可见范围统计
+    s = QuestionBankStore(db_path)
+    s.insert_many([
+        _q("g-1", "生物", "解答题", "基础", "subjective", "2020"),
+        _q(
+            "s-1", "生物", "解答题", "基础", "subjective", "2020",
+            school_id="schA", created_by="u-1", created_at="t",
+        ),
+    ])
+    assert s.count() == 1  # 全局范围仅全局种子题
+    assert s.count(visible_school_id="schA") == 2
+    assert s.get("s-1")["created_at"] == "t"
+
+
+def test_insert_many_astuple17字段与SQL一致(tmp_path) -> None:
+    """astuple 的 17 字段顺序与 _INSERT_SQL 列一致，插入后按可见范围正确往返。"""
+    s = QuestionBankStore(str(tmp_path / "astuple.db"))
+    global_q = _q("g-1", "生物", "解答题", "基础", "subjective", "2020")
+    school_q = _q(
+        "schA-1", "数学（理）", "选择题", "进阶", "objective", "2021",
+        school_id="schA", created_by="u-1", created_at="2026-08-25",
+    )
+    assert len(astuple(global_q)) == 17
+    assert len(astuple(school_q)) == 17
+
+    # 列名顺序（去引号后）与 dataclass 字段顺序一致
+    cols = re.search(r"\((.*?)\)", QuestionBankStore._INSERT_SQL, re.S).group(1)
+    sql_columns = [c.strip().strip('"') for c in cols.split(",")]
+    assert sql_columns == [f.name for f in fields(BankQuestion)]
+    # 占位符数量与字段数一致
+    assert QuestionBankStore._INSERT_SQL.count("?") == 17
+
+    assert s.insert_many([global_q, school_q]) == 2
+    row = s.get("schA-1")
+    assert row["school_id"] == "schA"
+    assert row["created_by"] == "u-1"
+    assert row["created_at"] == "2026-08-25"
+    assert row["source_type"] == "objective"
+    assert row["index"] == 0
+    # 全局范围仅全局题；给定校为全局+本校
+    assert s.count() == 1
+    assert {r["qid"] for r in s.search(limit=50)} == {"g-1"}
+    assert s.count(visible_school_id="schA") == 2
+    assert {r["qid"] for r in s.search(visible_school_id="schA", limit=50)} == {
+        "g-1", "schA-1",
+    }
+
+
+def test_count_search_visible_school_id三态(tmp_path) -> None:
+    """count/search 的可见范围：None 仅全局，给定校=全局+本校，他校=全局+他校。"""
+    s = QuestionBankStore(str(tmp_path / "scope.db"))
+    s.insert_many(_base_rows())  # 8 条全局种子题
+    s.insert_many([
+        _q(
+            "schA-1", "生物", "解答题", "进阶", "subjective", "2021",
+            school_id="schA", created_by="u-1", created_at="t",
+        ),
+        _q(
+            "schB-1", "数学（理）", "选择题", "基础", "objective", "2022",
+            school_id="schB", created_by="u-2", created_at="t",
+        ),
+    ])
+
+    assert s.count() == 8  # None：仅全局
+    assert s.count(visible_school_id="schA") == 9  # 全局 + A 校
+    assert s.count(visible_school_id="schB") == 9  # 全局 + B 校
+
+    assert s.count(subject="生物") == 2  # 全局生物 2 条
+    assert s.count(subject="生物", visible_school_id="schA") == 3  # 含 A 校生物
+
+    qids_a = {r["qid"] for r in s.search(visible_school_id="schA", limit=50)}
+    assert "schA-1" in qids_a
+    assert "schB-1" not in qids_a
+    qids_b = {r["qid"] for r in s.search(visible_school_id="schB", limit=50)}
+    assert "schB-1" in qids_b
+    assert "schA-1" not in qids_b
+    # 全局范围不返回任何校题
+    assert "schA-1" not in {r["qid"] for r in s.search(limit=50)}
+
+
+def test_facets_visible_school_id三态(tmp_path) -> None:
+    """facets 的可见范围：None 仅全局，给定校含全局+本校计数。"""
+    s = QuestionBankStore(str(tmp_path / "facets_scope.db"))
+    s.insert_many(_base_rows())  # 8 条全局种子题
+    s.insert_many([
+        _q(
+            "schA-1", "生物", "解答题", "进阶", "subjective", "2021",
+            school_id="schA", created_by="u-1", created_at="t",
+        ),
+    ])
+
+    global_subjects = {i["value"]: i["count"] for i in s.facets()["subjects"]}
+    assert global_subjects["生物"] == 2  # 全局不含校题
+
+    scha_subjects = {
+        i["value"]: i["count"]
+        for i in s.facets(visible_school_id="schA")["subjects"]
+    }
+    assert scha_subjects["生物"] == 3  # 全局 + 本校
+    scha_difficulties = {
+        i["value"]: i["count"]
+        for i in s.facets(visible_school_id="schA")["difficulties"]
+    }
+    assert scha_difficulties["进阶"] == 4  # 全局 3 + 本校 1
+
+    # 他校（schB 无本校题）：计数与全局一致
+    schb_subjects = {
+        i["value"]: i["count"]
+        for i in s.facets(visible_school_id="schB")["subjects"]
+    }
+    assert schb_subjects["生物"] == 2

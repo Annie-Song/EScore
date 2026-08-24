@@ -1,19 +1,23 @@
-"""Flask 路由：分类题库 REST API（F7）。
+"""Flask 路由：分类题库 REST API（F7/F10）。
 
-提供题库 facet 分布、按过滤条件检索与单题详情三个只读接口。
+提供题库 facet 分布、按过滤条件检索与单题详情三个只读接口；
+检索范围按当前用户学校扩展（全局 + 本校），跨校题目对外校不可见。
 """
 from __future__ import annotations
 
 from flask import Blueprint, jsonify, render_template, request
 
+from services import auth
 from services.question_bank_store import QuestionBankStore
 
 bp = Blueprint('bank', __name__)
 
-# 列表页精简字段：不返回 answer/analysis，保持响应负载小
+# 列表页精简字段：不返回 answer/analysis，保持响应负载小；
+# school_id/created_by 供前端判定"本校"徽标与删除权限
 _LIST_FIELDS = (
     "qid", "subject", "qtype", "grade", "year", "region",
     "difficulty", "source_type", "source_file", "question", "score",
+    "school_id", "created_by",
 )
 
 _NOT_BUILT_MSG = "题库未构建，请先运行 scripts/build_question_bank.py"
@@ -37,13 +41,23 @@ def _parse_int_arg(raw: str | None, default: int) -> int:
         return default
 
 
+def _visible_school_id() -> str | None:
+    """返回当前用户学校 id；游客或未入校用户返回 None。"""
+    user = auth.current_user()
+    if user is None:
+        return None
+    return user.get("school_id")
+
+
 @bp.route('/api/bank/facets', methods=['GET'])
 def bank_facets():
     """返回题库各维度 facet 分布，题库未构建返回 503 明确提示。"""
     store = QuestionBankStore()
     if not _build_ready(store):
         return jsonify({"message": _NOT_BUILT_MSG}), 503
-    return jsonify(store.facets()), 200
+    return jsonify(
+        store.facets(visible_school_id=_visible_school_id())
+    ), 200
 
 
 @bp.route('/api/bank/search', methods=['GET'])
@@ -64,8 +78,12 @@ def bank_search():
         "year": args.get('year'),
         "keyword": args.get('q'),
     }
-    items = store.search(limit=limit, offset=offset, **kwargs)
-    total = store.count(**kwargs)
+    visible_school_id = _visible_school_id()
+    items = store.search(
+        limit=limit, offset=offset,
+        visible_school_id=visible_school_id, **kwargs
+    )
+    total = store.count(visible_school_id=visible_school_id, **kwargs)
     return jsonify({
         "total": total,
         "items": [_list_item(item) for item in items],
@@ -76,12 +94,14 @@ def bank_search():
 
 @bp.route('/api/bank/questions/<qid>', methods=['GET'])
 def bank_question(qid: str):
-    """按 qid 返回单题完整详情（含 answer/analysis），不存在返回 404。"""
+    """按 qid 返回单题完整详情（含 answer/analysis），不存在或跨校不可见返回 404。"""
     store = QuestionBankStore()
     if not _build_ready(store):
         return jsonify({"message": _NOT_BUILT_MSG}), 503
     row = store.get(qid)
     if row is None:
+        return jsonify({"message": "题目不存在"}), 404
+    if row.get("school_id") and row["school_id"] != _visible_school_id():
         return jsonify({"message": "题目不存在"}), 404
     return jsonify(row), 200
 

@@ -238,3 +238,30 @@ def test_iter_gaokao_bank_全量(tmp_path, monkeypatch) -> None:
     by_index = {q.index: q for q in obj}
     assert by_index[0].difficulty == "基础"  # gpt4 正确
     assert by_index[1].difficulty == "进阶"  # gpt4 错误
+
+
+def test_bankquestion_租户字段默认None() -> None:
+    """BankQuestion 新增 school_id/created_by/created_at 默认 None。"""
+    q = BankQuestion(
+        qid="x", subject="生物", qtype="解答题", grade="高中", year="2020",
+        region="全国", difficulty="基础", source_type="subjective",
+        source_file="s.json", question="题干", answer="答案", analysis="解析",
+        score=5, index=0,
+    )
+    assert q.school_id is None
+    assert q.created_by is None
+    assert q.created_at is None
+
+
+def test_bankquestion_租户字段传入保留() -> None:
+    """传入 school_id/created_by/created_at 后按值保留。"""
+    q = BankQuestion(
+        qid="x", subject="生物", qtype="解答题", grade="高中", year="2020",
+        region="全国", difficulty="基础", source_type="subjective",
+        source_file="s.json", question="题干", answer="答案", analysis="解析",
+        score=5, index=0,
+        school_id="schA", created_by="u-1", created_at="2026-08-25T00:00:00",
+    )
+    assert q.school_id == "schA"
+    assert q.created_by == "u-1"
+    assert q.created_at == "2026-08-25T00:00:00"

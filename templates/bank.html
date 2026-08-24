@@ -181,6 +181,68 @@
     border-color: var(--success-color);
   }
 
+  /* 本校徽标与删除按钮 */
+  .school-badge {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    color: #fff;
+    background-color: var(--secondary-color);
+    vertical-align: middle;
+  }
+
+  .delete-btn {
+    margin-top: 10px;
+    margin-left: 10px;
+    padding: 6px 16px;
+    font-size: 13px;
+    width: auto;
+    display: inline-flex;
+    background: var(--card-bg);
+    color: var(--warning-color);
+    border: 1px solid var(--warning-color);
+  }
+
+  .delete-btn:hover {
+    background-color: var(--warning-color);
+    color: #fff;
+  }
+
+  /* 添加校本题卡片 */
+  .add-panel {
+    margin: 20px 0;
+    padding: 20px;
+    background: var(--light-bg);
+    border-radius: var(--border-radius);
+  }
+
+  .add-panel h2 {
+    font-size: 16px;
+    margin-bottom: 14px;
+    color: var(--dark-text);
+  }
+
+  .add-panel .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+
+  .add-panel label {
+    font-size: 13px;
+    margin-bottom: 5px;
+    color: var(--light-text);
+    display: block;
+  }
+
+  .add-panel textarea {
+    min-height: 90px;
+    resize: vertical;
+  }
+
   .empty {
     text-align: center;
     color: var(--light-text);
@@ -267,6 +329,42 @@
       </div>
     </div>
 
+    {% if session.get('school_id') %}
+    <div class="add-panel">
+      <h2>添加校本题</h2>
+      <div class="form-grid">
+        <div>
+          <label for="addSubject">科目</label>
+          <select id="addSubject"><option value="">请选择科目</option></select>
+        </div>
+        <div>
+          <label for="addQtype">题型</label>
+          <select id="addQtype"><option value="">请选择题型</option></select>
+        </div>
+        <div>
+          <label for="addDifficulty">难度</label>
+          <select id="addDifficulty">
+            <option value="基础">基础</option>
+            <option value="进阶">进阶</option>
+          </select>
+        </div>
+        <div>
+          <label for="addScore">分值</label>
+          <input type="number" id="addScore" min="0" value="10" />
+        </div>
+      </div>
+      <div>
+        <label for="addQuestion">题干</label>
+        <textarea id="addQuestion" placeholder="请输入题目内容"></textarea>
+      </div>
+      <div>
+        <label for="addAnswer">答案</label>
+        <textarea id="addAnswer" placeholder="请输入参考答案"></textarea>
+      </div>
+      <button type="button" id="addQuestionBtn">提交校本题</button>
+    </div>
+    {% endif %}
+
     <div class="result-info" id="resultInfo"></div>
     <div class="result-list" id="resultList"></div>
 
@@ -282,6 +380,9 @@
 <script>
   const PAGE_SIZE = 10;
   const NOT_BUILT_MSG = "题库未构建，请先运行 scripts/build_question_bank.py";
+  const currentRole = {{ session.get('role') | tojson }};
+  const currentSchoolId = {{ session.get('school_id') | tojson }};
+  const currentUserId = {{ session.get('user_id') | tojson }};
   let currentPage = 1;
   let totalItems = 0;
 
@@ -295,6 +396,9 @@
   // 填充单个下拉框：value 用原文，text 显示 value 与 count
   function fillSelect(selectId, items, labelFn) {
     const select = document.getElementById(selectId);
+    if (!select) {
+      return;
+    }
     (items || []).forEach((item) => {
       const option = document.createElement("option");
       option.value = item.value;
@@ -328,6 +432,9 @@
         data.source_types,
         (item) => `${sourceTypeLabel[item.value] || item.value} (${item.count})`
       );
+      // 添加校本题表单的科目/题型下拉复用同一份 facet 数据
+      fillSelect("addSubject", data.subjects, (item) => item.value);
+      fillSelect("addQtype", data.qtypes, (item) => item.value);
     } catch (error) {
       showNotification("加载筛选选项失败，请重试", "error");
     }
@@ -364,10 +471,28 @@
     return params;
   }
 
+  // 删除权限：admin 或（本校 school_admin 且同校）或题主本人
+  function canDeleteQuestion(item) {
+    if (!currentUserId) {
+      return false;
+    }
+    if (currentRole === "admin") {
+      return true;
+    }
+    if (currentRole === "school_admin" && item.school_id === currentSchoolId) {
+      return true;
+    }
+    return item.created_by === currentUserId;
+  }
+
   function renderCard(item) {
+    const schoolBadge = item.school_id
+      ? `<span class="school-badge">本校</span>` : "";
+    const deleteBtn = canDeleteQuestion(item)
+      ? `<button type="button" class="delete-btn">删除</button>` : "";
     return `
       <div class="result-card" data-qid="${escapeHtml(item.qid)}">
-        <div class="q-question">${escapeHtml(item.question)}</div>
+        <div class="q-question">${escapeHtml(item.question)}${schoolBadge}</div>
         <div class="q-tags">
           <span class="tag tag-subject">${escapeHtml(item.subject)}</span>
           <span class="tag tag-qtype">${escapeHtml(item.qtype)}</span>
@@ -383,6 +508,7 @@
         <div class="q-analysis" style="display: none"></div>
         <button type="button" class="detail-btn">查看解析</button>
         <button type="button" class="fav-btn">收藏</button>
+        ${deleteBtn}
       </div>`;
   }
 
@@ -530,6 +656,68 @@
     });
   }
 
+  // 提交校本题：POST /api/bank/questions，成功刷新列表与筛选选项
+  async function submitAddQuestion() {
+    const payload = {
+      subject: document.getElementById("addSubject").value,
+      qtype: document.getElementById("addQtype").value,
+      difficulty: document.getElementById("addDifficulty").value,
+      question: document.getElementById("addQuestion").value,
+      answer: document.getElementById("addAnswer").value,
+      score: document.getElementById("addScore").value,
+    };
+    if (
+      !payload.subject || !payload.qtype ||
+      !payload.question || !payload.answer
+    ) {
+      showNotification("请填写科目、题型、题干与答案", "warning");
+      return;
+    }
+    try {
+      const response = await fetch("/api/bank/questions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (response.status === 201) {
+        showNotification("校本题已添加", "success");
+        document.getElementById("addQuestion").value = "";
+        document.getElementById("addAnswer").value = "";
+        document.getElementById("addScore").value = "10";
+        doSearch();
+        loadFacets();
+        return;
+      }
+      showNotification(data.message || "添加失败，请重试", "error");
+    } catch (error) {
+      showNotification("添加失败，请重试", "error");
+    }
+  }
+
+  // 删除题目：确认后 DELETE，成功刷新列表
+  async function deleteQuestion(card) {
+    const qid = card.dataset.qid;
+    if (!confirm("确认删除该题目？")) {
+      return;
+    }
+    try {
+      const response = await fetch(
+        `/api/bank/questions/${encodeURIComponent(qid)}`,
+        { method: "DELETE" }
+      );
+      const data = await response.json().catch(() => ({}));
+      if (response.ok) {
+        showNotification(data.message || "已删除", "success");
+        doSearch();
+        return;
+      }
+      showNotification(data.message || "删除失败", "error");
+    } catch (error) {
+      showNotification("删除失败，请重试", "error");
+    }
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     document.getElementById("searchBtn").addEventListener("click", () => {
       currentPage = 1;
@@ -549,10 +737,19 @@
         doSearch();
       }
     });
+    const addBtn = document.getElementById("addQuestionBtn");
+    if (addBtn) {
+      addBtn.addEventListener("click", submitAddQuestion);
+    }
     document.getElementById("resultList").addEventListener("click", (e) => {
       const favBtn = e.target.closest(".fav-btn");
       if (favBtn) {
         addFavorite(favBtn.closest(".result-card"), favBtn);
+        return;
+      }
+      const deleteBtn = e.target.closest(".delete-btn");
+      if (deleteBtn) {
+        deleteQuestion(deleteBtn.closest(".result-card"));
         return;
       }
       const btn = e.target.closest(".detail-btn");

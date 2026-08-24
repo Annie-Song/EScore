@@ -40,6 +40,9 @@ def create_app() -> Flask:
     from app.bank_routes import bp as bank_bp
     app.register_blueprint(bank_bp)
 
+    from app.bank_manage_routes import bp as bank_manage_bp
+    app.register_blueprint(bank_manage_bp)
+
     from app.auth_routes import bp as auth_bp
     app.register_blueprint(auth_bp)
 
