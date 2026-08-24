@@ -9,6 +9,7 @@ import sqlite3
 from flask import Blueprint, jsonify, render_template, request, session
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from services.school_store import default_school_store
 from services.user_store import default_user_store
 
 bp = Blueprint('auth', __name__)
@@ -31,6 +32,7 @@ def _set_session(row: dict) -> None:
     session["display_name"] = row["display_name"]
     session["role"] = row["role"]
     session["plan"] = row["plan"]
+    session["school_id"] = row.get("school_id")
 
 
 @bp.route('/api/auth/register', methods=['POST'])
@@ -45,11 +47,19 @@ def auth_register():
         return jsonify({"message": "密码至少 6 位"}), 400
 
     store = default_user_store()
+    school_id = None
+    school_code = (body.get('school_code') or '').strip()
+    if school_code:
+        school = default_school_store().get_school_by_code(school_code)
+        if school is None:
+            return jsonify({"message": "学校代码无效"}), 400
+        school_id = school["id"]
     try:
         user = store.create_user(
             username=username,
             password_hash=generate_password_hash(password),
             display_name=(body.get('display_name') or '').strip(),
+            school_id=school_id,
         )
     except sqlite3.IntegrityError:
         return jsonify({"message": "用户名已存在"}), 409

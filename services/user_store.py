@@ -110,6 +110,35 @@ class UserStore:
             ).fetchone()
         return dict(row) if row is not None else None
 
+    def update_plan(self, user_id: str, plan: str) -> None:
+        """更新用户套餐；用户不存在抛 ValueError（fail-fast，不静默降级）。"""
+        with self._session() as conn:
+            cursor = conn.execute(
+                "UPDATE users SET plan=?, updated_at=? WHERE id=?",
+                (plan, self._now(), user_id),
+            )
+        if cursor.rowcount == 0:
+            raise ValueError(f"用户不存在: {user_id}")
+
+    def update_school_id(self, user_id: str, school_id: str) -> None:
+        """更新用户所属学校 id；用户不存在抛 ValueError（fail-fast）。"""
+        with self._session() as conn:
+            cursor = conn.execute(
+                "UPDATE users SET school_id=?, updated_at=? WHERE id=?",
+                (school_id, self._now(), user_id),
+            )
+        if cursor.rowcount == 0:
+            raise ValueError(f"用户不存在: {user_id}")
+
+    def list_users_by_school(self, school_id: str) -> list[dict]:
+        """按学校 id 列出全部成员，按创建时间倒序。"""
+        with self._session() as conn:
+            rows = conn.execute(
+                "SELECT * FROM users WHERE school_id=? ORDER BY created_at DESC",
+                (school_id,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
 
 _store: UserStore | None = None
 
