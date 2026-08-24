@@ -103,7 +103,8 @@ def bench_grade_image(n: int, warm: int) -> float:
                 data={'file': (f, SAMPLE_IMAGE.name), 'reference': REFERENCE},
                 content_type='multipart/form-data',
             )
-        resp.raise_for_status()
+        if resp.status_code >= 400:
+            raise RuntimeError(f"/api/grade_image 返回 {resp.status_code}")
     return _measure(_grade_image, n, warm)
 
 

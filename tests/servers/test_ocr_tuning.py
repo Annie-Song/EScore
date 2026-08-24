@@ -56,12 +56,12 @@ def _reset_ocr_singleton_cache():
 
 
 def test_load_paddleocr_passes_config_defaults_to_constructor():
-    """默认配置下构造收到 cpu_threads=2、device='cpu'（读 config 模块属性）。"""
+    """默认配置下构造收到 config 的 cpu_threads/device（读 config 模块属性）。"""
     with _inject_fake_paddleocr():
         ocr_module._load_paddleocr("ch")
         instance = ocr_module._ocr_instances["ch"]
-    assert instance.cpu_threads == 2
-    assert instance.device == "cpu"
+    assert instance.cpu_threads == config.OCR_CPU_THREADS
+    assert instance.device == config.OCR_DEVICE
 
 
 def test_load_paddleocr_honors_runtime_config_override():
