@@ -26,11 +26,15 @@ def _inject_fake_paddleocr(*, raise_on_init: bool = False) -> Iterator[Tuple[Dic
     counter: Dict[str, int] = {"count": 0}
 
     class _FakePaddleOCR:
-        def __init__(self, show_log: bool = False, use_angle_cls: bool = True, lang: str = "ch") -> None:
+        def __init__(self, show_log: bool = False, use_angle_cls: bool = True,
+                     lang: str = "ch", cpu_threads: object = None,
+                     device: str = "cpu") -> None:
             counter["count"] += 1
             if raise_on_init:
                 raise RuntimeError("mock paddleocr init failure")
             self.lang = lang
+            self.cpu_threads = cpu_threads
+            self.device = device
             self.calls: list = []
             # 并发深度探针：_active 为当前并发进入 ocr 的线程数，_max_active 为历史峰值
             self._active = 0
