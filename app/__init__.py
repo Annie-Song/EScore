@@ -46,4 +46,13 @@ def create_app() -> Flask:
     from app.me_routes import bp as me_bp
     app.register_blueprint(me_bp)
 
+    from app.pay_routes import bp as pay_bp
+    app.register_blueprint(pay_bp)
+
+    from app.school_routes import bp as school_bp
+    app.register_blueprint(school_bp)
+
+    from app.health_routes import bp as health_bp
+    app.register_blueprint(health_bp)
+
     return app

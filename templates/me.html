@@ -382,7 +382,7 @@
 
   document.addEventListener("DOMContentLoaded", function () {
     document.getElementById("upgradeBtn").addEventListener("click", () => {
-      showNotification("支付功能即将上线，敬请期待", "warning");
+      window.location.href = "/upgrade";
     });
 
     document.getElementById("favoriteList").addEventListener("click", (e) => {

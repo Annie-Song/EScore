@@ -19,6 +19,9 @@
       <a href="/bank" class="nav-item{% if request.path == '/bank' %} active{% endif %}">分类题库</a>
       <a href="/guide" class="nav-item{% if request.path == '/guide' %} active{% endif %}">使用教程</a>
       <a href="/me" class="nav-item{% if request.path == '/me' %} active{% endif %}">个人主页</a>
+      {% if session.get('role') == 'admin' %}
+      <a href="/admin" class="nav-item{% if request.path.startswith('/admin') %} active{% endif %}">学校管理</a>
+      {% endif %}
     </nav>
     <div class="sidebar-footer">
       <div class="theme-toggle-container">
