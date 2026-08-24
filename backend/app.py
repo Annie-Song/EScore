@@ -31,6 +31,9 @@ def create_app() -> Flask:
     from backend.grading.routes import bp
     app.register_blueprint(bp)
 
+    from backend.grading.routes_image import bp_image
+    app.register_blueprint(bp_image)
+
     from backend.batch.routes import bp as batch_bp
     app.register_blueprint(batch_bp)
 

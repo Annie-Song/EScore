@@ -30,7 +30,7 @@
                                  └─────────────────────────────┘
 ```
 
-Embedding 服务负责句向量编码与语义相似度，OCR 服务负责 PaddleOCR 文字识别、Real-ESRGAN 低置信增强重识别与水平投影分区。两者均为独立 FastAPI 进程，主应用经 HTTP 客户端调用，接口契约不变、业务调用方零改动即可在进程内实现与远程调用间切换。模型加载错误、内存尖峰都被隔离在服务进程内，不拖垮 Web 主进程。
+Embedding 服务负责句向量编码与语义相似度，OCR 服务负责 PaddleOCR 文字识别、Real-ESRGAN 低置信增强重识别与水平投影分区。两者均为独立 FastAPI 进程，主应用经 HTTP 客户端调用，接口契约不变、业务调用方零改动即可在进程内实现与远程调用间切换。模型加载错误、内存尖峰都被隔离在服务进程内，不拖垮 Web 主进程。单题图合并评分接口 `/api/grade_image` 把上传、OCR、评分收拢为一次请求，省去浏览器两次往返与文件二次落盘（单题实测中位 ~247ms）；OCR 推理线程数 `OCR_CPU_THREADS` 默认 4（整页/单题折中，环境变量可覆盖），推理设备 `OCR_DEVICE` 默认 `cpu`、设为 `gpu` 即启用 PaddleOCR GPU 推理（需另装 paddlepaddle-gpu），CPU 单题小图稳态 ~90ms，毫秒级出分需 GPU 加速。
 
 ## 用户体系
 
@@ -84,7 +84,7 @@ conda activate ggrade
 pip install -r requirements.txt
 ```
 
-关键版本说明：paddlepaddle 2.6.2 针对 numpy 1.x 编译，requirements.txt 已锁定 numpy==1.26.4，请勿升级到 numpy 2.x。复制 `.env.example` 为 `.env` 并填入 DeepSeek API Key；`.env` 可配置 `DEEPSEEK_API_KEY`、`FLASK_DEBUG`、`EMBEDDING_SERVICE_URL`、`OCR_SERVICE_URL`、`SECRET_KEY`（会话签名密钥，生产环境务必设置）。启动前可选运行 `python scripts/seed_demo_user.py` 播种演示账号（demo/demo1234、admin/admin123）。
+关键版本说明：paddlepaddle 2.6.2 针对 numpy 1.x 编译，requirements.txt 已锁定 numpy==1.26.4，请勿升级到 numpy 2.x。复制 `.env.example` 为 `.env` 并填入 DeepSeek API Key；`.env` 可配置 `DEEPSEEK_API_KEY`、`FLASK_DEBUG`、`EMBEDDING_SERVICE_URL`、`OCR_SERVICE_URL`、`SECRET_KEY`（会话签名密钥，生产环境务必设置）、`OCR_CPU_THREADS`（OCR 推理线程数，默认 4）、`OCR_DEVICE`（OCR 推理设备，默认 cpu，设 gpu 启用 GPU）。启动前可选运行 `python scripts/seed_demo_user.py` 播种演示账号（demo/demo1234、admin/admin123）。
 
 启动三个进程（同一 conda 环境，或双击 `run.bat`）：
 
