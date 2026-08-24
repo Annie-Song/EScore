@@ -16,7 +16,7 @@ import pytest
 from backend.app import create_app
 
 # 项目根目录 = 本文件（tests/test_bank_page.py）上上级
-_BASE_DIR = Path(__file__).resolve().parent.parent
+_BASE_DIR = Path(__file__).resolve().parent.parent.parent
 _TEMPLATE_DIR = _BASE_DIR / "frontend" / "templates"
 
 

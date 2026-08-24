@@ -13,7 +13,7 @@ from pathlib import Path
 
 from backend.app import create_app
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 INDEX_HTML_PATH = PROJECT_ROOT / "frontend" / "templates" / "index.html"
 
 

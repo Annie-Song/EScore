@@ -19,7 +19,7 @@ import pytest
 
 from backend.app import create_app
 
-_BASE_DIR = Path(__file__).resolve().parent.parent
+_BASE_DIR = Path(__file__).resolve().parent.parent.parent
 _TEMPLATE_DIR = _BASE_DIR / "frontend" / "templates"
 
 # 五个导航链接：href → 链接文本

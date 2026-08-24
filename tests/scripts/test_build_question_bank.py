@@ -18,7 +18,7 @@ from scripts.build_question_bank import main as build_main
 from backend.bank.store import QuestionBankStore
 from backend.core import config
 
-_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 @pytest.fixture(autouse=True)

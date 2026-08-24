@@ -8,7 +8,7 @@ from pathlib import Path
 
 from backend.app import create_app
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 BATCH_HTML_PATH = PROJECT_ROOT / "frontend" / "templates" / "batch.html"
 
 

@@ -15,7 +15,7 @@ import pytest
 
 from backend.app import create_app
 
-_BASE_DIR = Path(__file__).resolve().parent.parent
+_BASE_DIR = Path(__file__).resolve().parent.parent.parent
 _TEMPLATE_DIR = _BASE_DIR / "frontend" / "templates"
 
 _ADMIN_ENTRY = "学校管理"
