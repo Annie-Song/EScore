@@ -1,6 +1,6 @@
 """DeepSeek 在线评分客户端：调用大模型对答案语义打分。"""
+import json
 import os
-import re
 import logging
 from typing import Optional
 
@@ -45,6 +45,47 @@ def get_client() -> OpenAI:
     return _get_client()
 
 
+def _clamp_score(score: float) -> float:
+    """把评分钳制到 [0, 1] 区间，防止模型输出越界值污染最终分数。"""
+    return max(0.0, min(1.0, score))
+
+
+def _parse_score_content(content: Optional[str]) -> Optional[float]:
+    """从 DeepSeek 的 content 字符串中解析 0.00-1.00 的评分。
+
+    解析顺序（fail-fast，不伪造分数）：
+        a. 剥掉可能的 ```json 围栏后 json.loads，取 dict 的 "score" 键；
+        b. 裸数字浮点兜底（兼容模型偶发直接输出数字）；
+        c. 都失败时记录原始输出并返回 None。
+
+    参数:
+        content (Optional[str]): 模型输出的原始 content 文本
+
+    返回:
+        Optional[float]: 钳制到 [0, 1] 的评分；解析失败返回 None。
+    """
+    if not content:
+        return None
+    stripped = content.strip()
+    # 兼容 ```json 围栏输出：剥掉围栏再交给 json.loads
+    if stripped.startswith("```"):
+        stripped = stripped[3:]
+        if stripped.startswith("json"):
+            stripped = stripped[4:]
+        stripped = stripped.strip("`").strip()
+    try:
+        parsed = json.loads(stripped)
+        if isinstance(parsed, dict) and "score" in parsed:
+            return _clamp_score(float(parsed["score"]))
+    except (TypeError, ValueError):
+        pass
+    try:
+        return _clamp_score(float(stripped))
+    except (TypeError, ValueError):
+        logger.warning("无法从 DeepSeek 响应中解析出分数，原始输出: %s", content)
+        return None
+
+
 def get_points(reference: str, query: str) -> Optional[float]:
     """使用 DeepSeek 评估学生答案与参考答案的相似度。
 
@@ -59,50 +100,41 @@ def get_points(reference: str, query: str) -> Optional[float]:
         client = _get_client()
         response = client.chat.completions.create(
             model="deepseek-chat",
+            response_format={"type": "json_object"},
             messages=[
                 {
                     "role": "system",
                     "content": """你是一个专业评分老师，按以下规则精确打分：
-    1. 完全符合参考答案语义给1.00分
-    2. 部分正确按比例评分（如覆盖3个要点中的2个给0.67）
-    3. 语义相同但表达不同仍给满分
-    4. 必须输出0.00-1.00之间的两位小数
+1. 完全符合参考答案语义给1.00分
+2. 部分正确按比例评分（如覆盖3个要点中的2个给0.67）
+3. 语义相同但表达不同仍给满分
+4. 必须输出 JSON 格式：{"score": 0.85}，其中 score 为 0.00-1.00 之间的两位小数
 
-    示例：
-    参考：水的沸点是100℃
-    答案：水烧开需要100度 → 1.00
-    答案：开水温度约一百度 → 0.95
-    答案：水会沸腾 → 0.30"""
+示例：
+参考：水的沸点是100℃
+答案：水烧开需要100度 → {"score": 1.00}
+答案：开水温度约一百度 → {"score": 0.95}
+答案：水会沸腾 → {"score": 0.30}"""
                 },
                 {
                     "role": "user",
                     "content": f"""
-    [参考答案]
-    {reference}
+[参考答案]
+{reference}
 
-    [学生答案]
-    {query}
+[学生答案]
+{query}
 
-    请严格输出0.00-1.00的数字评分："""
+请严格输出 JSON 评分（score 为 0.00-1.00 两位小数）："""
                 }
             ],
             temperature=0.1,
             stream=False
         )
 
-        score_str = response.choices[0].message.content
-        logger.info("Deepseek原始输出: %s", score_str)
-
-        try:
-            return float(score_str)
-        except (TypeError, ValueError):
-            match = re.search(r"\d?\.\d{1,2}", score_str)
-            if match:
-                score = float(match.group())
-                logger.info("从文本中提取的评分: %s", score)
-                return score
-            logger.warning("无法从Deepseek响应中提取评分")
-            return None
+        content = response.choices[0].message.content
+        logger.info("Deepseek原始输出: %s", content)
+        return _parse_score_content(content)
 
     except Exception as e:
         logger.error("Deepseek API调用失败: %s", e)
