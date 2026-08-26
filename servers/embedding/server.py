@@ -104,6 +104,13 @@ def health() -> dict:
     return {"status": "ok", "model": MODEL_NAME}
 
 
+@app.get("/ready")
+def _ready() -> dict:
+    """就绪检查：强制加载向量模型一次，供 Docker 编排等待模型就绪（/health 不触发加载）。"""
+    _get_model()
+    return {"status": "ready", "model": MODEL_NAME}
+
+
 @app.post("/encode")
 def encode(payload: _EncodeRequest) -> dict:
     """编码文本列表为归一化向量矩阵。"""

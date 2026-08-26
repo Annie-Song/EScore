@@ -53,6 +53,14 @@ def health() -> dict:
     return {"status": "ok", "service": "ocr"}
 
 
+@app.get("/ready")
+def _ready() -> dict:
+    """就绪检查：强制加载 ch/en 两套 PaddleOCR，供 Docker 编排等待模型就绪（/health 不触发）。"""
+    ocr_core.ocr_instance('ch')
+    ocr_core.ocr_instance('en')
+    return {"status": "ready", "service": "ocr"}
+
+
 @app.post("/recognize_texts")
 def recognize_texts(payload: _RecognizeTextsRequest) -> dict:
     """识别多张图片文字，返回按行拼接的文本列表；空列表短路返回空结果。"""

@@ -63,9 +63,10 @@ EVAL_ANSWERS_PATH = './data/eval/answers.json'  # 三档生成作答缓存（生
 EVAL_TIER_SUSPECT_GOOD_BELOW = 0.6
 EVAL_TIER_SUSPECT_BAD_ABOVE = 0.7
 
-# 向量嵌入微服务监听地址：A8 拆分为独立 FastAPI 进程，客户端按此地址对接
-EMBEDDING_SERVICE_HOST = "127.0.0.1"
-EMBEDDING_SERVICE_PORT = 8765
+# 向量嵌入微服务监听地址：A8 拆分为独立 FastAPI 进程，客户端按此地址对接；
+# 监听地址可用环境变量覆盖（容器部署须绑 0.0.0.0 供其他容器访问），本地开发保持默认
+EMBEDDING_SERVICE_HOST = os.environ.get("EMBEDDING_SERVICE_HOST", "127.0.0.1")
+EMBEDDING_SERVICE_PORT = int(os.environ.get("EMBEDDING_SERVICE_PORT", "8765"))
 
 # 向量嵌入微服务地址：默认本地监听地址，可用环境变量覆盖（独立进程部署时指向其他主机）
 EMBEDDING_SERVICE_URL = os.environ.get(
@@ -73,9 +74,9 @@ EMBEDDING_SERVICE_URL = os.environ.get(
     f"http://{EMBEDDING_SERVICE_HOST}:{EMBEDDING_SERVICE_PORT}",
 )
 
-# OCR 微服务监听地址：拆分独立 FastAPI 进程，客户端按此地址对接
-OCR_SERVICE_HOST = "127.0.0.1"
-OCR_SERVICE_PORT = 8766
+# OCR 微服务监听地址：拆分独立 FastAPI 进程，客户端按此地址对接；监听地址可用环境变量覆盖
+OCR_SERVICE_HOST = os.environ.get("OCR_SERVICE_HOST", "127.0.0.1")
+OCR_SERVICE_PORT = int(os.environ.get("OCR_SERVICE_PORT", "8766"))
 
 # OCR 微服务地址：默认本地监听地址，可用环境变量覆盖
 OCR_SERVICE_URL = os.environ.get(
