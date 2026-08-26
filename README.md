@@ -111,9 +111,11 @@ python run.py
 
 GPU 预留了通路：`docker-compose.gpu.yml` 把 `OCR_DEVICE` 置为 `gpu` 并预留 nvidia 资源声明，但当前镜像内置 CPU 版 paddlepaddle，直接叠加启动会在 PaddleOCR 处失败，需先把 `docker/Dockerfile` 中的 paddlepaddle 换成 paddlepaddle-gpu 再重构建 ocr 目标。容器内主应用保持单进程（Werkzeug 开发服务器），因为批改任务注册表与内存缓存是进程内状态，多 worker 会破坏任务可见性；生产化换 gunicorn 单 worker 留作后续项。
 
+CPU 兼容性做了自动适配：paddlepaddle 2.6.x 的 Linux wheel 在 IR 图优化 pass 里编译进了 AVX-512 指令，在熔断 AVX-512 的 CPU（如 Raptor Lake 消费级）上会因非法指令崩溃，同时该 wheel 捆绑的 zlib 会插桩系统库导致 charset_normalizer 导入崩溃。镜像内已内置两层兜底：ocr 阶段预加载系统 libz 抢先绑定符号，`servers/ocr/paddle_compat.py` 在 Linux 且 CPU 无 AVX-512 时自动关闭 paddle 的 IR 图优化（Windows 宿主不受影响）。无 AVX-512 的机器可直接部署，代价仅是 OCR 推理少了图融合加速。
+
 ## 工程化
 
-单测 743 条，外部依赖（DeepSeek、OCR、向量嵌入）全部 mock、可离线独立运行，命名遵循 `test_功能_场景`。代码按 backend/servers/frontend 三层组织：backend/ 按功能域拆包（core/auth/bank/school/scoring/ocr/batch/stats/grading/pay/infra，routes+services+store 同置），servers/ 收纳独立微服务进程（embedding/、ocr/），frontend/ 收拢模板与静态资源实现目录级前后端分离，tests/ 按功能域分子目录。单个文件不超过约 200 行、模块级公开函数不超过 5 个，约束门禁脚本强制校验。部署已容器化：`docker compose up -d` 一键拉起三服务，模型构建期打包进镜像自包含离线，数据经 bind mount 落宿主（见 Docker 容器化部署一节）。迭代采用两层 Git 分支（版本分支 + 任务分支）与独立实现/测试 agent 分离的开发流程，业务代码由实现 agent 撰写、测试由独立 agent 撰写运行，避免自查自测。
+单测 747 条，外部依赖（DeepSeek、OCR、向量嵌入）全部 mock、可离线独立运行，命名遵循 `test_功能_场景`。代码按 backend/servers/frontend 三层组织：backend/ 按功能域拆包（core/auth/bank/school/scoring/ocr/batch/stats/grading/pay/infra，routes+services+store 同置），servers/ 收纳独立微服务进程（embedding/、ocr/），frontend/ 收拢模板与静态资源实现目录级前后端分离，tests/ 按功能域分子目录。单个文件不超过约 200 行、模块级公开函数不超过 5 个，约束门禁脚本强制校验。部署已容器化：`docker compose up -d` 一键拉起三服务，模型构建期打包进镜像自包含离线，数据经 bind mount 落宿主（见 Docker 容器化部署一节）。迭代采用两层 Git 分支（版本分支 + 任务分支）与独立实现/测试 agent 分离的开发流程，业务代码由实现 agent 撰写、测试由独立 agent 撰写运行，避免自查自测。
 
 ## 训练数据来源
 
