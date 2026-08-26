@@ -22,6 +22,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # pypi.org 与清华 tuna 实测均可达；tuna 更稳
+COPY requirements.txt ./requirements.txt
 RUN python -m pip install \
     --index-url https://pypi.tuna.tsinghua.edu.cn/simple \
     -r requirements.txt
@@ -35,7 +36,6 @@ COPY frontend/ ./frontend/
 COPY scripts/ ./scripts/
 COPY tests/ ./tests/
 COPY run.py ./run.py
-COPY requirements.txt ./requirements.txt
 COPY .env.example ./.env.example
 
 # ---- 向量嵌入微服务 :8765 ----

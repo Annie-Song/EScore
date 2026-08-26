@@ -101,9 +101,19 @@ python run.py
 
 浏览器访问 http://127.0.0.1:5000/ 即可使用。微服务未启动时离线评分与 OCR 会明确报错并提示启动命令（fail-fast，不静默降级），服务地址可用环境变量指向其他主机。启动后可运行 `python scripts/healthcheck.py` 检查三服务是否就绪（缺省只测一轮，`--wait 30` 表示每 1 秒重试直到全部就绪或 30 秒超时）。`run.bat` 已内置该健康检查：启动三个进程后等待最多 30 秒，全部就绪才打开浏览器，失败会提示"服务启动失败，请查看对应终端日志"并以非零码退出。
 
+## Docker 容器化部署
+
+项目可用 Docker 一键拉起三进程（主应用 :5000、向量嵌入 :8765、OCR :8766），免去 conda 环境与三终端手动启动。前置要求是装有 Docker Desktop（Windows/macOS）或 Docker Engine（Linux）的机器，并先把 `.env` 从 `.env.example` 复制并填入 `DEEPSEEK_API_KEY` 与 `SECRET_KEY`（缺 `.env` 也能启动，仅影响在线精排与会话签名安全）。
+
+模型权重在构建期从宿主机缓存打包进镜像，镜像构建完成后自包含离线，运行时零外网下载。本机实测 huggingface.co 与 hf-mirror.com 均被阻断，故构建期不联网拉模型，改为脚本把已下载完整的模型拷贝进构建上下文。首次构建前先运行 `python scripts/prepare_docker_models.py`：它把宿主机 `~/.cache/huggingface/hub` 中的 MiniLM 模型、`~/.paddleocr` 中的 PaddleOCR 模型（ch/en）拷贝到 `docker/models/` 舞台目录（跟随符号链接展开真实文件并跳过 blobs 缓存，合计约 488MB），并校验仓库内 ESRGAN 权重存在。然后执行 `docker compose build` 构建 app/embedding/ocr 三个镜像，`docker compose up -d` 启动全部服务。容器健康检查打各服务的 `/ready` 端点（会真实加载模型，而非 `/health` 的仅端口存活），embedding 与 ocr 就绪后主应用才启动，访问 http://localhost:5000 即进入系统。
+
+数据落宿主而非容器：`./output`（SQLite 库、批改报告、增强与分区中间产物）与 `./uploads`（上传图片）通过 bind mount 与宿主机共享，OCR 容器按主应用 HTTP 传入的文件路径读取同一份 `uploads`（只读），因此三容器共享同一套数据，零迁移即可接管现有 `output/` 与 `uploads/` 目录。关闭用 `docker compose down`（bind mount 保留数据）；联调通过后可给 app 服务加 `restart: unless-stopped` 实现重启自愈。
+
+GPU 预留了通路：`docker-compose.gpu.yml` 把 `OCR_DEVICE` 置为 `gpu` 并预留 nvidia 资源声明，但当前镜像内置 CPU 版 paddlepaddle，直接叠加启动会在 PaddleOCR 处失败，需先把 `docker/Dockerfile` 中的 paddlepaddle 换成 paddlepaddle-gpu 再重构建 ocr 目标。容器内主应用保持单进程（Werkzeug 开发服务器），因为批改任务注册表与内存缓存是进程内状态，多 worker 会破坏任务可见性；生产化换 gunicorn 单 worker 留作后续项。
+
 ## 工程化
 
-单测 716 条，外部依赖（DeepSeek、OCR、向量嵌入）全部 mock、可离线独立运行，命名遵循 `test_功能_场景`。代码按 backend/servers/frontend 三层组织：backend/ 按功能域拆包（core/auth/bank/school/scoring/ocr/batch/stats/grading/pay/infra，routes+services+store 同置），servers/ 收纳独立微服务进程（embedding/、ocr/），frontend/ 收拢模板与静态资源实现目录级前后端分离，tests/ 按功能域分子目录。单个文件不超过约 200 行、模块级公开函数不超过 5 个，约束门禁脚本强制校验。迭代采用两层 Git 分支（版本分支 + 任务分支）与独立实现/测试 agent 分离的开发流程，业务代码由实现 agent 撰写、测试由独立 agent 撰写运行，避免自查自测。
+单测 743 条，外部依赖（DeepSeek、OCR、向量嵌入）全部 mock、可离线独立运行，命名遵循 `test_功能_场景`。代码按 backend/servers/frontend 三层组织：backend/ 按功能域拆包（core/auth/bank/school/scoring/ocr/batch/stats/grading/pay/infra，routes+services+store 同置），servers/ 收纳独立微服务进程（embedding/、ocr/），frontend/ 收拢模板与静态资源实现目录级前后端分离，tests/ 按功能域分子目录。单个文件不超过约 200 行、模块级公开函数不超过 5 个，约束门禁脚本强制校验。部署已容器化：`docker compose up -d` 一键拉起三服务，模型构建期打包进镜像自包含离线，数据经 bind mount 落宿主（见 Docker 容器化部署一节）。迭代采用两层 Git 分支（版本分支 + 任务分支）与独立实现/测试 agent 分离的开发流程，业务代码由实现 agent 撰写、测试由独立 agent 撰写运行，避免自查自测。
 
 ## 训练数据来源
 
