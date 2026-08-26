@@ -1,0 +1,17 @@
+# GPU 预留位（不默认启用）。
+# 当前镜像内置 CPU 版 paddlepaddle==2.6.2，直接 `docker compose -f docker-compose.yml
+# -f docker-compose.gpu.yml up -d` 会在 PaddleOCR(device='gpu') 处失败（缺 paddlepaddle-gpu）。
+# 未来设备到位后：把 docker/Dockerfile 的 paddlepaddle 换成 paddlepaddle-gpu==2.6.2，
+# 重构建 ocr 目标，再叠加本文件启动：
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
+services:
+  ocr:
+    environment:
+      OCR_DEVICE: gpu
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

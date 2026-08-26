@@ -1,0 +1,31 @@
+# VCS / 工具
+.git
+.gitignore
+.claude/
+.pytest_cache/
+pyvenv.cfg
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+
+# 运行时数据（bind mount 或本地专用，不进镜像）
+output/
+uploads/
+data/
+DOCX/
+memory/
+experiments/
+homework.jpeg
+
+# 环境与密钥（保留 .env.example 供 COPY）
+.env
+.env.*
+!.env.example
+
+# 平台杂项
+run.bat
+desktop.ini
+Thumbs.db
+*.log
