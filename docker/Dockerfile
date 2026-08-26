@@ -4,7 +4,10 @@
 # 镜像构建完成后自包含离线，运行时零外网下载（hf-mirror.com 在本机被墙，不可依赖）。
 # 三目标共享 base+code 层，torch+paddle+opencv 等重依赖只在磁盘存一份。
 
-FROM python:3.9-slim-bookworm AS base
+# paddlepaddle 2.6.2 按 2023 年基线（glibc 2.31/zlib 1.2.11 时代）构建；
+# Debian bookworm（glibc 2.36/zlib 1.2.13）下 PaddleOCR 实例化会 SIGSEGV（inflateReset2 崩溃），
+# 故基础镜像用 bullseye（glibc 2.31）与之匹配
+FROM python:3.9-slim-bullseye AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -59,22 +62,33 @@ CMD ["python", "-m", "servers.embedding.server"]
 # ---- OCR 微服务 :8766 ----
 FROM code AS ocr
 
-ENV OCR_DEVICE=cpu OCR_CPU_THREADS=4
+ENV OCR_DEVICE=cpu \
+    OCR_CPU_THREADS=4 \
+    LD_PRELOAD=/lib/x86_64-linux-gnu/libz.so.1
+# LD_PRELOAD 系统 libz：paddle 2.6.x Linux wheel 把自有 zlib 静态编进 libpaddle.so
+# 并导出 inflate* 符号，会插桩系统 libz；后加载的 charset_normalizer(cd, Cython) 经
+# Python zlib 初始化时 inflateInit2_ 内部调用 inflateReset2 被解析到 paddle 版本，
+# 流布局不匹配 → free 垃圾指针 SIGSEGV。预加载系统 libz 抢先绑定符号规避之。
+
 # 拷贝本地 PaddleOCR 模型缓存（det/rec/cls，ch/en 齐全）
 COPY docker/models/paddleocr/ /root/.paddleocr/
 # ESRGAN 权重在构建上下文（仓库内，gitignore 但已在磁盘）；缺失则本行 COPY 失败（fail-fast）
 COPY ESRGAN/models/RealESRGAN_x4plus.pth ./ESRGAN/models/RealESRGAN_x4plus.pth
 
-# 冒烟：离线实例化 ch/en 两套 PaddleOCR + 校验 ESRGAN 权重可加载
+# 冒烟：走真实识别路径（含 paddle_compat 在无 AVX-512 CPU 上禁用 IR 图优化的兜底）
+# + ESRGAN 权重可加载校验。fail-fast：任一失败则镜像构建中止。
 RUN python -c "\
-from paddleocr import PaddleOCR;\
-PaddleOCR(show_log=False, use_angle_cls=True, lang='ch', cpu_threads=4, device='cpu');\
-PaddleOCR(show_log=False, use_angle_cls=True, lang='en', cpu_threads=4, device='cpu');\
-print('paddleocr ch/en prewarm OK')"
-RUN python -c "\
+import cv2;\
+import numpy as np;\
+img = np.zeros((64, 256, 3), np.uint8);\
+cv2.putText(img, 'Hello 123', (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2);\
+cv2.imwrite('/tmp/prewarm.png', img);\
+from servers.ocr import core;\
+text = core.recognize_single('/tmp/prewarm.png', lang='ch');\
+assert 'Hello' in text, f'OCR prewarm failed: {text!r}';\
 from servers.ocr.enhance import is_available;\
 assert is_available(), 'ESRGAN weight not loadable';\
-print('esrgan prewarm OK')"
+print('ocr prewarm OK:', text)"
 
 CMD ["python", "-m", "servers.ocr.server"]
 

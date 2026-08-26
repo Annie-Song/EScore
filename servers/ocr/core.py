@@ -11,6 +11,7 @@ from typing import List, Tuple
 
 from backend.core import config
 from backend.core.cache import BoundedCache, file_sha1
+from servers.ocr import paddle_compat
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,8 @@ def _load_paddleocr(lang: str) -> object:
         return _ocr_instances[lang]
     with _load_lock:
         if lang not in _ocr_instances:
+            # Linux 无 AVX-512 时禁用 IR 图优化，规避 paddle wheel 的 SIGILL
+            paddle_compat.apply()
             from paddleocr import PaddleOCR
             _ocr_instances[lang] = PaddleOCR(
                 show_log=False,
