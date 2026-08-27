@@ -107,6 +107,8 @@ python run.py
 
 模型权重在构建期从宿主机缓存打包进镜像，镜像构建完成后自包含离线，运行时零外网下载。本机实测 huggingface.co 与 hf-mirror.com 均被阻断，故构建期不联网拉模型，改为脚本把已下载完整的模型拷贝进构建上下文。首次构建前先运行 `python scripts/prepare_docker_models.py`：它把宿主机 `~/.cache/huggingface/hub` 中的 MiniLM 模型、`~/.paddleocr` 中的 PaddleOCR 模型（ch/en）拷贝到 `docker/models/` 舞台目录（跟随符号链接展开真实文件并跳过 blobs 缓存，合计约 488MB），并校验仓库内 ESRGAN 权重存在。然后执行 `docker compose build` 构建 app/embedding/ocr 三个镜像，`docker compose up -d` 启动全部服务。容器健康检查打各服务的 `/ready` 端点（会真实加载模型，而非 `/health` 的仅端口存活），embedding 与 ocr 就绪后主应用才启动，访问 http://localhost:5000 即进入系统。
 
+本机 Docker Hub（auth.docker.io/registry-1.docker.io）也被阻断，基础镜像 `python:3.9-slim-bullseye` 需先从可达镜像源拉取再本地打标，之后 `docker compose build` 直接命中本地镜像：`docker pull docker.m.daocloud.io/library/python:3.9-slim-bullseye && docker tag docker.m.daocloud.io/library/python:3.9-slim-bullseye python:3.9-slim-bullseye`。同理 `docker/Dockerfile` 已移除 `# syntax=docker/dockerfile:1` 指令（该指令会触发构建期从被墙的 docker.io 拉取 dockerfile 前端镜像），改用 BuildKit 内置前端，行为等价。apt（deb.debian.org）与 pip（清华 tuna）在本机可达，无需镜像。
+
 数据落宿主而非容器：`./output`（SQLite 库、批改报告、增强与分区中间产物）与 `./uploads`（上传图片）通过 bind mount 与宿主机共享，OCR 容器按主应用 HTTP 传入的文件路径读取同一份 `uploads`（只读），因此三容器共享同一套数据，零迁移即可接管现有 `output/` 与 `uploads/` 目录。关闭用 `docker compose down`（bind mount 保留数据）；联调通过后可给 app 服务加 `restart: unless-stopped` 实现重启自愈。
 
 GPU 预留了通路：`docker-compose.gpu.yml` 把 `OCR_DEVICE` 置为 `gpu` 并预留 nvidia 资源声明，但当前镜像内置 CPU 版 paddlepaddle，直接叠加启动会在 PaddleOCR 处失败，需先把 `docker/Dockerfile` 中的 paddlepaddle 换成 paddlepaddle-gpu 再重构建 ocr 目标。容器内主应用保持单进程（Werkzeug 开发服务器），因为批改任务注册表与内存缓存是进程内状态，多 worker 会破坏任务可见性；生产化换 gunicorn 单 worker 留作后续项。
