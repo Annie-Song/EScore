@@ -1,4 +1,5 @@
-# syntax=docker/dockerfile:1
+# 注意：本机 docker.io 被墙，`# syntax=docker/dockerfile:1` 指令会触发从 registry 拉取
+# dockerfile 前端镜像而失败，故不使用该指令，直接依赖 BuildKit 内置前端（等价）。
 # 多目标构建：base(依赖) → code(源码) → embedding/ocr/app 三个运行镜像。
 # 模型由 scripts/prepare_docker_models.py 从宿主机拷入 docker/models/，构建期纯 COPY，
 # 镜像构建完成后自包含离线，运行时零外网下载（hf-mirror.com 在本机被墙，不可依赖）。
