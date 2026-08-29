@@ -29,3 +29,6 @@ httpx==0.28.1
 
 # 测试依赖
 pytest==8.4.2
+
+# 生产 WSGI 服务器（仅容器内 gunicorn 入口使用；gunicorn 不支持 Windows，原生开发仍走 run.py，install 无副作用）
+gunicorn==23.0.0
