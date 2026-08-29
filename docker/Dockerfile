@@ -96,4 +96,7 @@ CMD ["python", "-m", "servers.ocr.server"]
 # ---- Flask 主应用 :5000 ----
 FROM code AS app
 
-CMD ["python", "run.py"]
+# gunicorn 生产 WSGI（workers=1 + threads=8，详见 docker/gunicorn.conf.py）；原生开发仍用 run.py
+COPY wsgi.py ./wsgi.py
+COPY docker/gunicorn.conf.py ./docker/gunicorn.conf.py
+CMD ["gunicorn", "-c", "docker/gunicorn.conf.py", "wsgi:app"]
