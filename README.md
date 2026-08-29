@@ -109,9 +109,9 @@ python run.py
 
 本机 Docker Hub（auth.docker.io/registry-1.docker.io）也被阻断，基础镜像 `python:3.9-slim-bullseye` 需先从可达镜像源拉取再本地打标，之后 `docker compose build` 直接命中本地镜像：`docker pull docker.m.daocloud.io/library/python:3.9-slim-bullseye && docker tag docker.m.daocloud.io/library/python:3.9-slim-bullseye python:3.9-slim-bullseye`。同理 `docker/Dockerfile` 已移除 `# syntax=docker/dockerfile:1` 指令（该指令会触发构建期从被墙的 docker.io 拉取 dockerfile 前端镜像），改用 BuildKit 内置前端，行为等价。apt（deb.debian.org）与 pip（清华 tuna）在本机可达，无需镜像。
 
-数据落宿主而非容器：`./output`（SQLite 库、批改报告、增强与分区中间产物）与 `./uploads`（上传图片）通过 bind mount 与宿主机共享，OCR 容器按主应用 HTTP 传入的文件路径读取同一份 `uploads`（只读），因此三容器共享同一套数据，零迁移即可接管现有 `output/` 与 `uploads/` 目录。关闭用 `docker compose down`（bind mount 保留数据）；联调通过后可给 app 服务加 `restart: unless-stopped` 实现重启自愈。
+数据落宿主而非容器：`./output`（SQLite 库、批改报告、增强与分区中间产物）与 `./uploads`（上传图片）通过 bind mount 与宿主机共享，OCR 容器按主应用 HTTP 传入的文件路径读取同一份 `uploads`（只读），因此三容器共享同一套数据，零迁移即可接管现有 `output/` 与 `uploads/` 目录。关闭用 `docker compose down`（bind mount 保留数据）。三服务均已启用 `restart: unless-stopped`：容器主进程崩溃自动拉起（实测 SIGKILL 主进程 5 秒内自愈，`docker kill`/`docker stop` 属手动停止不会触发重启）。
 
-GPU 预留了通路：`docker-compose.gpu.yml` 把 `OCR_DEVICE` 置为 `gpu` 并预留 nvidia 资源声明，但当前镜像内置 CPU 版 paddlepaddle，直接叠加启动会在 PaddleOCR 处失败，需先把 `docker/Dockerfile` 中的 paddlepaddle 换成 paddlepaddle-gpu 再重构建 ocr 目标。容器内主应用保持单进程（Werkzeug 开发服务器），因为批改任务注册表与内存缓存是进程内状态，多 worker 会破坏任务可见性；生产化换 gunicorn 单 worker 留作后续项。
+GPU 预留了通路：`docker-compose.gpu.yml` 把 `OCR_DEVICE` 置为 `gpu` 并预留 nvidia 资源声明，但当前镜像内置 CPU 版 paddlepaddle，直接叠加启动会在 PaddleOCR 处失败，需先把 `docker/Dockerfile` 中的 paddlepaddle 换成 paddlepaddle-gpu 再重构建 ocr 目标。容器内主应用运行生产 WSGI 服务器 gunicorn（`docker/gunicorn.conf.py`）：`workers=1` 保证批改任务注册表与内存缓存等进程内状态在单进程内一致，`threads=8` 用 gthread worker 并发处理 HTTP，长 OCR/评分请求不阻塞健康检查与其他请求；`timeout=300` 适配单图增强+评分慢路径，访问日志走 stderr（`docker compose logs` 可见）。原生开发仍用 `python run.py`（Werkzeug）。
 
 CPU 兼容性做了自动适配：paddlepaddle 2.6.x 的 Linux wheel 在 IR 图优化 pass 里编译进了 AVX-512 指令，在熔断 AVX-512 的 CPU（如 Raptor Lake 消费级）上会因非法指令崩溃，同时该 wheel 捆绑的 zlib 会插桩系统库导致 charset_normalizer 导入崩溃。镜像内已内置两层兜底：ocr 阶段预加载系统 libz 抢先绑定符号，`servers/ocr/paddle_compat.py` 在 Linux 且 CPU 无 AVX-512 时自动关闭 paddle 的 IR 图优化（Windows 宿主不受影响）。无 AVX-512 的机器可直接部署，代价仅是 OCR 推理少了图融合加速。
 
